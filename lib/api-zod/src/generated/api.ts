@@ -153,6 +153,250 @@ export const DeleteServiceParams = zod.object({
 });
 
 /**
+ * @summary List professionals for a clinic
+ */
+export const ListProfessionalsParams = zod.object({
+  clinicId: zod.coerce.number(),
+});
+
+export const ListProfessionalsQueryParams = zod.object({
+  serviceId: zod.coerce
+    .number()
+    .optional()
+    .describe("Filter professionals who can perform this service"),
+});
+
+export const ListProfessionalsResponseItem = zod.object({
+  id: zod.number(),
+  clinicId: zod.number(),
+  name: zod.string(),
+  specialty: zod.string(),
+  bio: zod.string().nullish(),
+  active: zod.boolean(),
+  createdAt: zod.date(),
+  updatedAt: zod.date(),
+});
+export const ListProfessionalsResponse = zod.array(
+  ListProfessionalsResponseItem,
+);
+
+/**
+ * @summary Create a professional
+ */
+export const CreateProfessionalParams = zod.object({
+  clinicId: zod.coerce.number(),
+});
+
+export const CreateProfessionalBody = zod.object({
+  name: zod.string(),
+  specialty: zod.string(),
+  bio: zod.string().optional(),
+  active: zod.boolean().optional(),
+  serviceIds: zod.array(zod.number()).optional(),
+});
+
+/**
+ * @summary Get a professional with their service links
+ */
+export const GetProfessionalParams = zod.object({
+  clinicId: zod.coerce.number(),
+  id: zod.coerce.number(),
+});
+
+export const GetProfessionalResponse = zod.object({
+  id: zod.number(),
+  clinicId: zod.number(),
+  name: zod.string(),
+  specialty: zod.string(),
+  bio: zod.string().nullish(),
+  active: zod.boolean(),
+  createdAt: zod.date(),
+  updatedAt: zod.date(),
+  serviceIds: zod.array(zod.number()),
+});
+
+/**
+ * @summary Update a professional
+ */
+export const UpdateProfessionalParams = zod.object({
+  clinicId: zod.coerce.number(),
+  id: zod.coerce.number(),
+});
+
+export const UpdateProfessionalBody = zod.object({
+  name: zod.string().optional(),
+  specialty: zod.string().optional(),
+  bio: zod.string().optional(),
+  active: zod.boolean().optional(),
+});
+
+export const UpdateProfessionalResponse = zod.object({
+  id: zod.number(),
+  clinicId: zod.number(),
+  name: zod.string(),
+  specialty: zod.string(),
+  bio: zod.string().nullish(),
+  active: zod.boolean(),
+  createdAt: zod.date(),
+  updatedAt: zod.date(),
+});
+
+/**
+ * @summary Delete a professional
+ */
+export const DeleteProfessionalParams = zod.object({
+  clinicId: zod.coerce.number(),
+  id: zod.coerce.number(),
+});
+
+/**
+ * @summary Set the services a professional can perform (replaces existing)
+ */
+export const SetProfessionalServicesParams = zod.object({
+  clinicId: zod.coerce.number(),
+  id: zod.coerce.number(),
+});
+
+export const SetProfessionalServicesBody = zod.object({
+  serviceIds: zod.array(zod.number()),
+});
+
+export const SetProfessionalServicesResponse = zod.object({
+  id: zod.number(),
+  clinicId: zod.number(),
+  name: zod.string(),
+  specialty: zod.string(),
+  bio: zod.string().nullish(),
+  active: zod.boolean(),
+  createdAt: zod.date(),
+  updatedAt: zod.date(),
+  serviceIds: zod.array(zod.number()),
+});
+
+/**
+ * @summary List patients for a clinic
+ */
+export const ListPatientsParams = zod.object({
+  clinicId: zod.coerce.number(),
+});
+
+export const ListPatientsQueryParams = zod.object({
+  search: zod.coerce.string().optional().describe("Search by name or phone"),
+});
+
+export const ListPatientsResponseItem = zod.object({
+  id: zod.number(),
+  clinicId: zod.number(),
+  name: zod.string(),
+  phone: zod.string(),
+  email: zod.string().nullish(),
+  dateOfBirth: zod.string().nullish(),
+  notes: zod.string().nullish(),
+  createdAt: zod.date(),
+  updatedAt: zod.date(),
+});
+export const ListPatientsResponse = zod.array(ListPatientsResponseItem);
+
+/**
+ * @summary Create a patient
+ */
+export const CreatePatientParams = zod.object({
+  clinicId: zod.coerce.number(),
+});
+
+export const CreatePatientBody = zod.object({
+  name: zod.string(),
+  phone: zod.string(),
+  email: zod.string().optional(),
+  dateOfBirth: zod.string().optional(),
+  notes: zod.string().optional(),
+});
+
+/**
+ * @summary Get patient with appointment history
+ */
+export const GetPatientParams = zod.object({
+  clinicId: zod.coerce.number(),
+  id: zod.coerce.number(),
+});
+
+export const GetPatientResponse = zod.object({
+  id: zod.number(),
+  clinicId: zod.number(),
+  name: zod.string(),
+  phone: zod.string(),
+  email: zod.string().nullish(),
+  dateOfBirth: zod.string().nullish(),
+  notes: zod.string().nullish(),
+  createdAt: zod.date(),
+  updatedAt: zod.date(),
+  appointments: zod.array(
+    zod.object({
+      id: zod.number(),
+      clinicId: zod.number(),
+      serviceId: zod.number().nullish(),
+      professionalId: zod.number().nullish(),
+      patientId: zod.number().nullish(),
+      patientName: zod.string(),
+      patientPhone: zod.string(),
+      scheduledAt: zod.date(),
+      status: zod.enum(["pending", "confirmed", "canceled"]),
+      paymentIntentId: zod.string().nullish(),
+      notes: zod.string().nullish(),
+      createdAt: zod.date(),
+    }),
+  ),
+  aiLogs: zod.array(
+    zod.object({
+      id: zod.number(),
+      clinicId: zod.number(),
+      patientPhone: zod.string(),
+      userMessage: zod.string(),
+      aiResponse: zod.string(),
+      tokensUsed: zod.number(),
+      messageType: zod.enum(["text", "audio"]),
+      createdAt: zod.date(),
+    }),
+  ),
+});
+
+/**
+ * @summary Update patient info or notes
+ */
+export const UpdatePatientParams = zod.object({
+  clinicId: zod.coerce.number(),
+  id: zod.coerce.number(),
+});
+
+export const UpdatePatientBody = zod.object({
+  name: zod.string().optional(),
+  phone: zod.string().optional(),
+  email: zod.string().optional(),
+  dateOfBirth: zod.string().optional(),
+  notes: zod.string().optional(),
+});
+
+export const UpdatePatientResponse = zod.object({
+  id: zod.number(),
+  clinicId: zod.number(),
+  name: zod.string(),
+  phone: zod.string(),
+  email: zod.string().nullish(),
+  dateOfBirth: zod.string().nullish(),
+  notes: zod.string().nullish(),
+  createdAt: zod.date(),
+  updatedAt: zod.date(),
+});
+
+/**
+ * @summary Delete a patient
+ */
+export const DeletePatientParams = zod.object({
+  clinicId: zod.coerce.number(),
+  id: zod.coerce.number(),
+});
+
+/**
  * @summary List appointments for a clinic
  */
 export const ListAppointmentsParams = zod.object({
@@ -161,12 +405,16 @@ export const ListAppointmentsParams = zod.object({
 
 export const ListAppointmentsQueryParams = zod.object({
   status: zod.enum(["pending", "confirmed", "canceled"]).optional(),
+  professionalId: zod.coerce.number().optional(),
+  patientId: zod.coerce.number().optional(),
 });
 
 export const ListAppointmentsResponseItem = zod.object({
   id: zod.number(),
   clinicId: zod.number(),
   serviceId: zod.number().nullish(),
+  professionalId: zod.number().nullish(),
+  patientId: zod.number().nullish(),
   patientName: zod.string(),
   patientPhone: zod.string(),
   scheduledAt: zod.date(),
@@ -188,12 +436,15 @@ export const UpdateAppointmentParams = zod.object({
 export const UpdateAppointmentBody = zod.object({
   status: zod.enum(["pending", "confirmed", "canceled"]).optional(),
   notes: zod.string().optional(),
+  professionalId: zod.number().optional(),
 });
 
 export const UpdateAppointmentResponse = zod.object({
   id: zod.number(),
   clinicId: zod.number(),
   serviceId: zod.number().nullish(),
+  professionalId: zod.number().nullish(),
+  patientId: zod.number().nullish(),
   patientName: zod.string(),
   patientPhone: zod.string(),
   scheduledAt: zod.date(),

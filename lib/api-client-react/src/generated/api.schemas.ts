@@ -91,6 +91,65 @@ export interface UpdateServiceBody {
   durationMinutes?: number;
 }
 
+export interface Professional {
+  id: number;
+  clinicId: number;
+  name: string;
+  specialty: string;
+  /** @nullable */
+  bio?: string | null;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProfessionalDetail {
+  id: number;
+  clinicId: number;
+  name: string;
+  specialty: string;
+  /** @nullable */
+  bio?: string | null;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+  serviceIds: number[];
+}
+
+export interface CreateProfessionalBody {
+  name: string;
+  specialty: string;
+  bio?: string;
+  active?: boolean;
+  serviceIds?: number[];
+}
+
+export interface UpdateProfessionalBody {
+  name?: string;
+  specialty?: string;
+  bio?: string;
+  active?: boolean;
+}
+
+export interface SetProfessionalServicesBody {
+  serviceIds: number[];
+}
+
+export interface Patient {
+  id: number;
+  clinicId: number;
+  name: string;
+  phone: string;
+  /** @nullable */
+  email?: string | null;
+  /** @nullable */
+  dateOfBirth?: string | null;
+  /** @nullable */
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export type AppointmentStatus =
   (typeof AppointmentStatus)[keyof typeof AppointmentStatus];
 
@@ -105,6 +164,10 @@ export interface Appointment {
   clinicId: number;
   /** @nullable */
   serviceId?: number | null;
+  /** @nullable */
+  professionalId?: number | null;
+  /** @nullable */
+  patientId?: number | null;
   patientName: string;
   patientPhone: string;
   scheduledAt: string;
@@ -114,20 +177,6 @@ export interface Appointment {
   /** @nullable */
   notes?: string | null;
   createdAt: string;
-}
-
-export type UpdateAppointmentBodyStatus =
-  (typeof UpdateAppointmentBodyStatus)[keyof typeof UpdateAppointmentBodyStatus];
-
-export const UpdateAppointmentBodyStatus = {
-  pending: "pending",
-  confirmed: "confirmed",
-  canceled: "canceled",
-} as const;
-
-export interface UpdateAppointmentBody {
-  status?: UpdateAppointmentBodyStatus;
-  notes?: string;
 }
 
 export type AiLogMessageType =
@@ -147,6 +196,54 @@ export interface AiLog {
   tokensUsed: number;
   messageType: AiLogMessageType;
   createdAt: string;
+}
+
+export interface PatientDetail {
+  id: number;
+  clinicId: number;
+  name: string;
+  phone: string;
+  /** @nullable */
+  email?: string | null;
+  /** @nullable */
+  dateOfBirth?: string | null;
+  /** @nullable */
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  appointments: Appointment[];
+  aiLogs: AiLog[];
+}
+
+export interface CreatePatientBody {
+  name: string;
+  phone: string;
+  email?: string;
+  dateOfBirth?: string;
+  notes?: string;
+}
+
+export interface UpdatePatientBody {
+  name?: string;
+  phone?: string;
+  email?: string;
+  dateOfBirth?: string;
+  notes?: string;
+}
+
+export type UpdateAppointmentBodyStatus =
+  (typeof UpdateAppointmentBodyStatus)[keyof typeof UpdateAppointmentBodyStatus];
+
+export const UpdateAppointmentBodyStatus = {
+  pending: "pending",
+  confirmed: "confirmed",
+  canceled: "canceled",
+} as const;
+
+export interface UpdateAppointmentBody {
+  status?: UpdateAppointmentBodyStatus;
+  notes?: string;
+  professionalId?: number;
 }
 
 export type WhatsappWebhookBodyMessageType =
@@ -172,8 +269,24 @@ export interface WhatsappWebhookResponse {
   appointmentId?: number | null;
 }
 
+export type ListProfessionalsParams = {
+  /**
+   * Filter professionals who can perform this service
+   */
+  serviceId?: number;
+};
+
+export type ListPatientsParams = {
+  /**
+   * Search by name or phone
+   */
+  search?: string;
+};
+
 export type ListAppointmentsParams = {
   status?: ListAppointmentsStatus;
+  professionalId?: number;
+  patientId?: number;
 };
 
 export type ListAppointmentsStatus =

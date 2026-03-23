@@ -9,4 +9,6 @@ import type { ListAppointmentsStatus } from "./listAppointmentsStatus";
 
 export type ListAppointmentsParams = {
   status?: ListAppointmentsStatus;
+  professionalId?: number;
+  patientId?: number;
 };

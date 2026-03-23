@@ -8,6 +8,8 @@ export const appointmentsTable = pgTable("appointments", {
   id: serial("id").primaryKey(),
   clinicId: integer("clinic_id").notNull().references(() => clinicsTable.id, { onDelete: "cascade" }),
   serviceId: integer("service_id").references(() => servicesTable.id, { onDelete: "set null" }),
+  professionalId: integer("professional_id"),
+  patientId: integer("patient_id"),
   patientName: text("patient_name").notNull(),
   patientPhone: text("patient_phone").notNull(),
   scheduledAt: timestamp("scheduled_at", { withTimezone: true }).notNull(),

@@ -13,6 +13,10 @@ tags:
     description: Clinic management
   - name: services
     description: Services offered by a clinic
+  - name: professionals
+    description: Professionals and their specialties
+  - name: patients
+    description: Patient/client management
   - name: appointments
     description: Appointment management
   - name: ai-logs
@@ -211,6 +215,282 @@ paths:
         "204":
           description: Deleted
 
+  /clinics/{clinicId}/professionals:
+    get:
+      operationId: listProfessionals
+      tags: [professionals]
+      summary: List professionals for a clinic
+      parameters:
+        - name: clinicId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: serviceId
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Filter professionals who can perform this service
+      responses:
+        "200":
+          description: List of professionals
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Professional"
+    post:
+      operationId: createProfessional
+      tags: [professionals]
+      summary: Create a professional
+      parameters:
+        - name: clinicId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProfessionalBody"
+      responses:
+        "201":
+          description: Created professional
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Professional"
+
+  /clinics/{clinicId}/professionals/{id}:
+    get:
+      operationId: getProfessional
+      tags: [professionals]
+      summary: Get a professional with their service links
+      parameters:
+        - name: clinicId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Professional detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfessionalDetail"
+    patch:
+      operationId: updateProfessional
+      tags: [professionals]
+      summary: Update a professional
+      parameters:
+        - name: clinicId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProfessionalBody"
+      responses:
+        "200":
+          description: Updated professional
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Professional"
+    delete:
+      operationId: deleteProfessional
+      tags: [professionals]
+      summary: Delete a professional
+      parameters:
+        - name: clinicId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /clinics/{clinicId}/professionals/{id}/services:
+    put:
+      operationId: setProfessionalServices
+      tags: [professionals]
+      summary: Set the services a professional can perform (replaces existing)
+      parameters:
+        - name: clinicId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetProfessionalServicesBody"
+      responses:
+        "200":
+          description: Updated service list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfessionalDetail"
+
+  /clinics/{clinicId}/patients:
+    get:
+      operationId: listPatients
+      tags: [patients]
+      summary: List patients for a clinic
+      parameters:
+        - name: clinicId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Search by name or phone
+      responses:
+        "200":
+          description: List of patients
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Patient"
+    post:
+      operationId: createPatient
+      tags: [patients]
+      summary: Create a patient
+      parameters:
+        - name: clinicId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePatientBody"
+      responses:
+        "201":
+          description: Created patient
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Patient"
+
+  /clinics/{clinicId}/patients/{id}:
+    get:
+      operationId: getPatient
+      tags: [patients]
+      summary: Get patient with appointment history
+      parameters:
+        - name: clinicId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Patient detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PatientDetail"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      operationId: updatePatient
+      tags: [patients]
+      summary: Update patient info or notes
+      parameters:
+        - name: clinicId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePatientBody"
+      responses:
+        "200":
+          description: Updated patient
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Patient"
+    delete:
+      operationId: deletePatient
+      tags: [patients]
+      summary: Delete a patient
+      parameters:
+        - name: clinicId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
   /clinics/{clinicId}/appointments:
     get:
       operationId: listAppointments
@@ -228,6 +508,16 @@ paths:
           schema:
             type: string
             enum: [pending, confirmed, canceled]
+        - name: professionalId
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: patientId
+          in: query
+          required: false
+          schema:
+            type: integer
       responses:
         "200":
           description: List of appointments
@@ -429,6 +719,181 @@ components:
         durationMinutes:
           type: integer
 
+    Professional:
+      type: object
+      properties:
+        id:
+          type: integer
+        clinicId:
+          type: integer
+        name:
+          type: string
+        specialty:
+          type: string
+        bio:
+          type: ["string", "null"]
+        active:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, clinicId, name, specialty, active, createdAt, updatedAt]
+
+    ProfessionalDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+        clinicId:
+          type: integer
+        name:
+          type: string
+        specialty:
+          type: string
+        bio:
+          type: ["string", "null"]
+        active:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        serviceIds:
+          type: array
+          items:
+            type: integer
+      required: [id, clinicId, name, specialty, active, createdAt, updatedAt, serviceIds]
+
+    CreateProfessionalBody:
+      type: object
+      properties:
+        name:
+          type: string
+        specialty:
+          type: string
+        bio:
+          type: string
+        active:
+          type: boolean
+        serviceIds:
+          type: array
+          items:
+            type: integer
+      required: [name, specialty]
+
+    UpdateProfessionalBody:
+      type: object
+      properties:
+        name:
+          type: string
+        specialty:
+          type: string
+        bio:
+          type: string
+        active:
+          type: boolean
+
+    SetProfessionalServicesBody:
+      type: object
+      properties:
+        serviceIds:
+          type: array
+          items:
+            type: integer
+      required: [serviceIds]
+
+    Patient:
+      type: object
+      properties:
+        id:
+          type: integer
+        clinicId:
+          type: integer
+        name:
+          type: string
+        phone:
+          type: string
+        email:
+          type: ["string", "null"]
+        dateOfBirth:
+          type: ["string", "null"]
+        notes:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, clinicId, name, phone, createdAt, updatedAt]
+
+    PatientDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+        clinicId:
+          type: integer
+        name:
+          type: string
+        phone:
+          type: string
+        email:
+          type: ["string", "null"]
+        dateOfBirth:
+          type: ["string", "null"]
+        notes:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        appointments:
+          type: array
+          items:
+            $ref: "#/components/schemas/Appointment"
+        aiLogs:
+          type: array
+          items:
+            $ref: "#/components/schemas/AiLog"
+      required: [id, clinicId, name, phone, createdAt, updatedAt, appointments, aiLogs]
+
+    CreatePatientBody:
+      type: object
+      properties:
+        name:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+        dateOfBirth:
+          type: string
+        notes:
+          type: string
+      required: [name, phone]
+
+    UpdatePatientBody:
+      type: object
+      properties:
+        name:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+        dateOfBirth:
+          type: string
+        notes:
+          type: string
+
     Appointment:
       type: object
       properties:
@@ -437,6 +902,10 @@ components:
         clinicId:
           type: integer
         serviceId:
+          type: ["integer", "null"]
+        professionalId:
+          type: ["integer", "null"]
+        patientId:
           type: ["integer", "null"]
         patientName:
           type: string
@@ -465,6 +934,8 @@ components:
           enum: [pending, confirmed, canceled]
         notes:
           type: string
+        professionalId:
+          type: integer
 
     AiLog:
       type: object

@@ -2,7 +2,7 @@
 
 ## Overview
 
-An MVP SaaS platform for clinic management (Medical, Vet, Dental) with automated WhatsApp AI attendance. Each clinic can manage its own AI flow, personality, and services.
+An MVP SaaS platform for clinic management (Medical, Vet, Dental) with automated WhatsApp AI attendance. Each clinic can manage its own AI flow, personality, services, professionals, and patient records.
 
 ## Stack
 
@@ -16,7 +16,7 @@ An MVP SaaS platform for clinic management (Medical, Vet, Dental) with automated
 - **API codegen**: Orval (from OpenAPI spec)
 - **Build**: esbuild
 - **AI**: OpenAI (GPT-5.2 for chat/function calling, gpt-4o-mini-transcribe for Whisper audio)
-- **Frontend**: React + Vite (Tailwind v4, shadcn/ui)
+- **Frontend**: React + Vite (Tailwind v4, shadcn/ui, date-fns)
 
 ## Architecture
 
@@ -30,6 +30,8 @@ artifacts-monorepo/
 │   │       └── routes/
 │   │           ├── clinics.ts
 │   │           ├── services.ts
+│   │           ├── professionals.ts    # Professionals + specialty filtering
+│   │           ├── patients.ts         # Patient CRUD + history
 │   │           ├── appointments.ts
 │   │           ├── ai-logs.ts
 │   │           └── whatsapp.ts         # WhatsApp webhook handler
@@ -39,6 +41,8 @@ artifacts-monorepo/
 │               ├── Dashboard.tsx       # Stats overview
 │               ├── AiSettings.tsx      # Configure AI name, personality, knowledge base
 │               ├── Services.tsx        # Manage clinic services
+│               ├── Professionals.tsx   # Manage professionals & specialties
+│               ├── Patients.tsx        # Patient CRUD, history & notes
 │               ├── Appointments.tsx    # View/update appointments
 │               └── AiLogs.tsx          # AI interaction history
 ├── lib/
@@ -49,7 +53,9 @@ artifacts-monorepo/
 │       └── src/schema/
 │           ├── clinics.ts
 │           ├── services.ts
-│           ├── appointments.ts
+│           ├── professionals.ts    # professionals + professional_services tables
+│           ├── patients.ts         # patients table
+│           ├── appointments.ts     # now includes professional_id & patient_id
 │           └── ai_logs.ts
 ```
 
@@ -57,7 +63,10 @@ artifacts-monorepo/
 
 - **clinics**: `id`, `name`, `phone`, `api_key`, `ai_name`, `ai_personality_prompt`, `knowledge_base`, `clinic_type`
 - **services**: `id`, `clinic_id`, `name`, `price`, `duration_minutes`
-- **appointments**: `id`, `clinic_id`, `service_id`, `patient_name`, `patient_phone`, `scheduled_at`, `status` (pending/confirmed/canceled), `payment_intent_id`, `notes`
+- **professionals**: `id`, `clinic_id`, `name`, `specialty`, `bio`, `active`
+- **professional_services**: `id`, `professional_id`, `service_id` (many-to-many junction)
+- **patients**: `id`, `clinic_id`, `name`, `phone`, `email`, `date_of_birth`, `notes`
+- **appointments**: `id`, `clinic_id`, `service_id`, `professional_id`, `patient_id`, `patient_name`, `patient_phone`, `scheduled_at`, `status` (pending/confirmed/canceled), `notes`
 - **ai_logs**: `id`, `clinic_id`, `patient_phone`, `user_message`, `ai_response`, `tokens_used`, `message_type`
 
 ## WhatsApp Webhook
@@ -76,9 +85,11 @@ For audio: include `audioUrl` (downloadable .ogg) and set `messageType: "audio"`
 
 ## AI Function Calling Tools
 
-- `check_availability(date, serviceId?)` — Returns available hourly slots
-- `book_appointment(patientName, patientPhone, scheduledAt, serviceId?, notes?)` — Creates appointment
+- `check_availability(date, serviceId?)` — Returns available hourly slots AND professionals qualified for the service
+- `book_appointment(patientName, patientPhone, scheduledAt, serviceId?, professionalId?, notes?)` — Creates appointment with optional professional
 - `faq_lookup(query)` — Searches clinic knowledge base
+
+The AI now presents qualified professionals to the patient when checking availability and includes the chosen professional in the booking.
 
 ## Demo Clinic
 
@@ -86,6 +97,15 @@ For audio: include `audioUrl` (downloadable .ogg) and set `messageType: "audio"`
 - **API Key**: `demo-api-key-clinic-001`
 - **Name**: Clínica Saúde Total
 - **AI Assistant**: Sofia
+
+## Key Implementation Notes
+
+- `numeric` columns from PostgreSQL come back as strings — always wrap with `Number()` before returning
+- Use `req.log` inside route handlers (pino-http), `logger` singleton only for startup/background code
+- Express 5: async handlers need `Promise<void>`, use `res.status().json(); return;` pattern for early exits
+- Frontend `CLINIC_ID = 1` is hardcoded (single-tenant demo)
+- All AI responses are in Brazilian Portuguese (pt-BR)
+- OpenAI via Replit AI Integrations — env vars set automatically, no API key required
 
 ## Scripts
 

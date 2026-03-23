@@ -1,6 +1,6 @@
 import OpenAI from "openai";
-import { db, clinicsTable, servicesTable, appointmentsTable, aiLogsTable } from "@workspace/db";
-import { eq, and, gte, lte } from "drizzle-orm";
+import { db, clinicsTable, servicesTable, appointmentsTable, aiLogsTable, professionalsTable, professionalServicesTable } from "@workspace/db";
+import { eq, and, gte, lte, inArray } from "drizzle-orm";
 import { logger } from "./logger";
 
 if (!process.env.AI_INTEGRATIONS_OPENAI_BASE_URL || !process.env.AI_INTEGRATIONS_OPENAI_API_KEY) {
@@ -17,7 +17,7 @@ const AI_TOOLS: OpenAI.Chat.ChatCompletionTool[] = [
     type: "function",
     function: {
       name: "check_availability",
-      description: "Check available appointment slots for a given date and optional professional ID",
+      description: "Check available appointment slots for a given date and optional service. Returns available times AND the list of professionals qualified to perform the service.",
       parameters: {
         type: "object",
         properties: {
@@ -27,7 +27,7 @@ const AI_TOOLS: OpenAI.Chat.ChatCompletionTool[] = [
           },
           serviceId: {
             type: "number",
-            description: "Optional service ID to filter availability",
+            description: "Optional service ID to filter professionals and availability",
           },
         },
         required: ["date"],
@@ -53,6 +53,10 @@ const AI_TOOLS: OpenAI.Chat.ChatCompletionTool[] = [
           serviceId: {
             type: "number",
             description: "ID of the service to book",
+          },
+          professionalId: {
+            type: "number",
+            description: "ID of the chosen professional (optional, but recommended when multiple are available)",
           },
           scheduledAt: {
             type: "string",
@@ -130,17 +134,46 @@ async function executeToolCall(
         }
       }
 
-      if (availableSlots.length === 0) {
-        return `Nenhum horário disponível em ${date}. Por favor, escolha outra data.`;
+      let professionalsText = "";
+      if (serviceId) {
+        const links = await db
+          .select({ professionalId: professionalServicesTable.professionalId })
+          .from(professionalServicesTable)
+          .where(eq(professionalServicesTable.serviceId, serviceId));
+
+        const professionalIds = links.map(l => l.professionalId);
+        if (professionalIds.length > 0) {
+          const professionals = await db
+            .select()
+            .from(professionalsTable)
+            .where(
+              and(
+                eq(professionalsTable.clinicId, clinicId),
+                eq(professionalsTable.active, true),
+                inArray(professionalsTable.id, professionalIds)
+              )
+            );
+
+          if (professionals.length > 0) {
+            professionalsText = `\n\nProfissionais disponíveis para este serviço:\n${professionals
+              .map(p => `- ${p.name} (${p.specialty}) [ID: ${p.id}]`)
+              .join("\n")}`;
+          }
+        }
       }
 
-      return `Horários disponíveis em ${date}:\n${availableSlots.join("\n")}`;
+      if (availableSlots.length === 0) {
+        return `Nenhum horário disponível em ${date}. Por favor, escolha outra data.${professionalsText}`;
+      }
+
+      return `Horários disponíveis em ${date}:\n${availableSlots.join("\n")}${professionalsText}`;
     }
 
     if (toolName === "book_appointment") {
-      const { patientName, serviceId, scheduledAt, notes } = args as {
+      const { patientName, serviceId, professionalId, scheduledAt, notes } = args as {
         patientName: string;
         serviceId?: number;
+        professionalId?: number;
         scheduledAt: string;
         notes?: string;
       };
@@ -152,13 +185,23 @@ async function executeToolCall(
           patientName,
           patientPhone,
           serviceId: serviceId ?? null,
+          professionalId: professionalId ?? null,
           scheduledAt: new Date(scheduledAt),
           status: "pending",
           notes: notes ?? null,
         })
         .returning();
 
-      return `Agendamento confirmado! ID: #${appointment.id}. Data: ${new Date(scheduledAt).toLocaleString("pt-BR")}. Status: Pendente. Você receberá uma confirmação em breve.`;
+      let professionalName = "";
+      if (professionalId) {
+        const [prof] = await db
+          .select({ name: professionalsTable.name })
+          .from(professionalsTable)
+          .where(eq(professionalsTable.id, professionalId));
+        if (prof) professionalName = ` com ${prof.name}`;
+      }
+
+      return `Agendamento confirmado! ID: #${appointment.id}. Data: ${new Date(scheduledAt).toLocaleString("pt-BR")}${professionalName}. Status: Pendente. Você receberá uma confirmação em breve.`;
     }
 
     if (toolName === "faq_lookup") {
@@ -217,8 +260,9 @@ ${servicesText}
 Instruções importantes:
 - Responda sempre em português brasileiro
 - Seja prestativo, empático e profissional
-- Quando o paciente quiser agendar, use a função book_appointment
-- Para verificar horários, use check_availability
+- Quando o paciente quiser agendar, primeiro use check_availability com o serviceId para ver os horários disponíveis E os profissionais qualificados para aquele serviço
+- Apresente os profissionais disponíveis ao paciente e pergunte qual prefere (quando houver mais de um)
+- Ao confirmar o agendamento, use book_appointment incluindo o professionalId quando o paciente escolher um profissional
 - Para dúvidas sobre serviços/políticas, use faq_lookup
 - Não invente informações que não estejam na base de conhecimento
 - Hoje é: ${new Date().toLocaleDateString("pt-BR", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}`;

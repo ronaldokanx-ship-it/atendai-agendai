@@ -12,6 +12,10 @@ export interface Appointment {
   clinicId: number;
   /** @nullable */
   serviceId?: number | null;
+  /** @nullable */
+  professionalId?: number | null;
+  /** @nullable */
+  patientId?: number | null;
   patientName: string;
   patientPhone: string;
   scheduledAt: Date;
