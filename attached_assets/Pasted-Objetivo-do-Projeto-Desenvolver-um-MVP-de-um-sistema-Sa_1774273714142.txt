@@ -1,0 +1,56 @@
+Objetivo do Projeto:
+Desenvolver um MVP de um sistema SaaS Multi-tenant para gestão de clínicas (Médicas, Vet, Odonto) com foco em atendimento automatizado via WhatsApp. O diferencial é que cada clínica pode gerenciar seu próprio fluxo de IA, personalidade e serviços.
+
+Stack Tecnológica Obrigatória:
+
+Framework: Next.js 14+ (App Router).
+
+Backend/Banco: Supabase (PostgreSQL) com Row Level Security (RLS) para isolamento total entre clínicas.
+
+IA: OpenAI (Modelos gpt-4o para lógica e whisper-1 para transcrição de áudio).
+
+WhatsApp: Integração via Webhooks (compatível com Evolution API ou Baileys).
+
+Pagamentos: Stripe ou Mercado Pago (com Webhook de confirmação).
+
+Requisitos de Arquitetura e Banco de Dados (SQL):
+
+Tabela clinics: Armazena dados da empresa, incluindo campos ai_name, ai_personality_prompt e knowledge_base (texto longo para regras da clínica).
+
+Tabela services: Vinculada à clínica, definindo nome do serviço, preço e duração.
+
+Tabela appointments: Armazena agendamentos com status (pending, confirmed, canceled) e payment_intent_id.
+
+Tabela ai_logs: Para histórico de interações e consumo de tokens por clínica.
+
+Funcionalidades da IA (O Coração do Sistema):
+
+Orquestrador de Contexto: A IA deve receber o clinic_id no webhook, buscar as configurações daquela clínica no Supabase e montar o System Prompt dinamicamente antes de processar a mensagem do paciente.
+
+Function Calling (Tools): A IA deve ter acesso a funções programáticas para:
+
+check_availability(date, professional_id): Consulta horários livres.
+
+book_appointment(patient_name, service_id, slot): Insere no banco e retorna link de pagamento.
+
+faq_lookup(query): Busca informações na knowledge_base da clínica.
+
+Processamento de Áudio: Implementar lógica para detectar se o payload do webhook é um arquivo de áudio, enviar para Whisper e tratar o texto resultante como entrada da IA.
+
+O que você deve gerar agora:
+
+Schema SQL Completo: Com as tabelas citadas e políticas de RLS para que o admin de uma clínica só veja seus próprios dados.
+
+Estrutura de Pastas do Next.js: Seguindo padrões de escalabilidade (ex: /lib, /hooks, /services, /api/whatsapp/webhook).
+
+Código do Webhook Principal (Node.js/Next.js): Uma API Route que receba a mensagem do WhatsApp, identifique a clínica pelo número de telefone (ou API Key), carregue o prompt personalizado da clínica e utilize OpenAI Function Calling para interagir com o banco de dados.
+
+Exemplo de Interface (Tailwind): Uma página simples de "Configurações da IA" onde o dono da clínica edita o nome da assistente e as regras de atendimento.
+
+Padrões de Qualidade:
+
+Código limpo (Clean Code), TypeScript estrito.
+
+Tratamento de erros robusto para falhas de API de IA ou Banco.
+
+Comentários explicativos em funções complexas.

@@ -1,8 +1,8 @@
-# Workspace
+# ClinicAI — SaaS Multi-tenant Clinic Management
 
 ## Overview
 
-pnpm workspace monorepo using TypeScript. Each package manages its own dependencies.
+An MVP SaaS platform for clinic management (Medical, Vet, Dental) with automated WhatsApp AI attendance. Each clinic can manage its own AI flow, personality, and services.
 
 ## Stack
 
@@ -14,83 +14,82 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - **Database**: PostgreSQL + Drizzle ORM
 - **Validation**: Zod (`zod/v4`), `drizzle-zod`
 - **API codegen**: Orval (from OpenAPI spec)
-- **Build**: esbuild (CJS bundle)
+- **Build**: esbuild
+- **AI**: OpenAI (GPT-5.2 for chat/function calling, gpt-4o-mini-transcribe for Whisper audio)
+- **Frontend**: React + Vite (Tailwind v4, shadcn/ui)
 
-## Structure
+## Architecture
 
 ```text
 artifacts-monorepo/
-├── artifacts/              # Deployable applications
-│   └── api-server/         # Express API server
-├── lib/                    # Shared libraries
-│   ├── api-spec/           # OpenAPI spec + Orval codegen config
+├── artifacts/
+│   ├── api-server/         # Express API server
+│   │   └── src/
+│   │       ├── lib/
+│   │       │   └── ai-orchestrator.ts  # OpenAI Function Calling engine
+│   │       └── routes/
+│   │           ├── clinics.ts
+│   │           ├── services.ts
+│   │           ├── appointments.ts
+│   │           ├── ai-logs.ts
+│   │           └── whatsapp.ts         # WhatsApp webhook handler
+│   └── clinic-dashboard/   # React frontend (clinic owner portal)
+│       └── src/
+│           └── pages/
+│               ├── Dashboard.tsx       # Stats overview
+│               ├── AiSettings.tsx      # Configure AI name, personality, knowledge base
+│               ├── Services.tsx        # Manage clinic services
+│               ├── Appointments.tsx    # View/update appointments
+│               └── AiLogs.tsx          # AI interaction history
+├── lib/
+│   ├── api-spec/           # OpenAPI spec (source of truth)
 │   ├── api-client-react/   # Generated React Query hooks
-│   ├── api-zod/            # Generated Zod schemas from OpenAPI
-│   └── db/                 # Drizzle ORM schema + DB connection
-├── scripts/                # Utility scripts (single workspace package)
-│   └── src/                # Individual .ts scripts, run via `pnpm --filter @workspace/scripts run <script>`
-├── pnpm-workspace.yaml     # pnpm workspace (artifacts/*, lib/*, lib/integrations/*, scripts)
-├── tsconfig.base.json      # Shared TS options (composite, bundler resolution, es2022)
-├── tsconfig.json           # Root TS project references
-└── package.json            # Root package with hoisted devDeps
+│   ├── api-zod/            # Generated Zod schemas
+│   └── db/
+│       └── src/schema/
+│           ├── clinics.ts
+│           ├── services.ts
+│           ├── appointments.ts
+│           └── ai_logs.ts
 ```
 
-## TypeScript & Composite Projects
+## Database Schema
 
-Every package extends `tsconfig.base.json` which sets `composite: true`. The root `tsconfig.json` lists all packages as project references. This means:
+- **clinics**: `id`, `name`, `phone`, `api_key`, `ai_name`, `ai_personality_prompt`, `knowledge_base`, `clinic_type`
+- **services**: `id`, `clinic_id`, `name`, `price`, `duration_minutes`
+- **appointments**: `id`, `clinic_id`, `service_id`, `patient_name`, `patient_phone`, `scheduled_at`, `status` (pending/confirmed/canceled), `payment_intent_id`, `notes`
+- **ai_logs**: `id`, `clinic_id`, `patient_phone`, `user_message`, `ai_response`, `tokens_used`, `message_type`
 
-- **Always typecheck from the root** — run `pnpm run typecheck` (which runs `tsc --build --emitDeclarationOnly`). This builds the full dependency graph so that cross-package imports resolve correctly. Running `tsc` inside a single package will fail if its dependencies haven't been built yet.
-- **`emitDeclarationOnly`** — we only emit `.d.ts` files during typecheck; actual JS bundling is handled by esbuild/tsx/vite...etc, not `tsc`.
-- **Project references** — when package A depends on package B, A's `tsconfig.json` must list B in its `references` array. `tsc --build` uses this to determine build order and skip up-to-date packages.
+## WhatsApp Webhook
 
-## Root Scripts
+`POST /api/whatsapp/webhook` — accepts JSON payload:
+```json
+{
+  "apiKey": "demo-api-key-clinic-001",
+  "from": "+5511999001234",
+  "message": "Quero agendar uma consulta",
+  "messageType": "text"
+}
+```
 
-- `pnpm run build` — runs `typecheck` first, then recursively runs `build` in all packages that define it
-- `pnpm run typecheck` — runs `tsc --build --emitDeclarationOnly` using project references
+For audio: include `audioUrl` (downloadable .ogg) and set `messageType: "audio"` — it auto-transcribes with Whisper.
 
-## Packages
+## AI Function Calling Tools
 
-### `artifacts/api-server` (`@workspace/api-server`)
+- `check_availability(date, serviceId?)` — Returns available hourly slots
+- `book_appointment(patientName, patientPhone, scheduledAt, serviceId?, notes?)` — Creates appointment
+- `faq_lookup(query)` — Searches clinic knowledge base
 
-Express 5 API server. Routes live in `src/routes/` and use `@workspace/api-zod` for request and response validation and `@workspace/db` for persistence.
+## Demo Clinic
 
-- Entry: `src/index.ts` — reads `PORT`, starts Express
-- App setup: `src/app.ts` — mounts CORS, JSON/urlencoded parsing, routes at `/api`
-- Routes: `src/routes/index.ts` mounts sub-routers; `src/routes/health.ts` exposes `GET /health` (full path: `/api/health`)
-- Depends on: `@workspace/db`, `@workspace/api-zod`
-- `pnpm --filter @workspace/api-server run dev` — run the dev server
-- `pnpm --filter @workspace/api-server run build` — production esbuild bundle (`dist/index.cjs`)
-- Build bundles an allowlist of deps (express, cors, pg, drizzle-orm, zod, etc.) and externalizes the rest
+- **Clinic ID**: 1
+- **API Key**: `demo-api-key-clinic-001`
+- **Name**: Clínica Saúde Total
+- **AI Assistant**: Sofia
 
-### `lib/db` (`@workspace/db`)
+## Scripts
 
-Database layer using Drizzle ORM with PostgreSQL. Exports a Drizzle client instance and schema models.
-
-- `src/index.ts` — creates a `Pool` + Drizzle instance, exports schema
-- `src/schema/index.ts` — barrel re-export of all models
-- `src/schema/<modelname>.ts` — table definitions with `drizzle-zod` insert schemas (no models definitions exist right now)
-- `drizzle.config.ts` — Drizzle Kit config (requires `DATABASE_URL`, automatically provided by Replit)
-- Exports: `.` (pool, db, schema), `./schema` (schema only)
-
-Production migrations are handled by Replit when publishing. In development, we just use `pnpm --filter @workspace/db run push`, and we fallback to `pnpm --filter @workspace/db run push-force`.
-
-### `lib/api-spec` (`@workspace/api-spec`)
-
-Owns the OpenAPI 3.1 spec (`openapi.yaml`) and the Orval config (`orval.config.ts`). Running codegen produces output into two sibling packages:
-
-1. `lib/api-client-react/src/generated/` — React Query hooks + fetch client
-2. `lib/api-zod/src/generated/` — Zod schemas
-
-Run codegen: `pnpm --filter @workspace/api-spec run codegen`
-
-### `lib/api-zod` (`@workspace/api-zod`)
-
-Generated Zod schemas from the OpenAPI spec (e.g. `HealthCheckResponse`). Used by `api-server` for response validation.
-
-### `lib/api-client-react` (`@workspace/api-client-react`)
-
-Generated React Query hooks and fetch client from the OpenAPI spec (e.g. `useHealthCheck`, `healthCheck`).
-
-### `scripts` (`@workspace/scripts`)
-
-Utility scripts package. Each script is a `.ts` file in `src/` with a corresponding npm script in `package.json`. Run scripts via `pnpm --filter @workspace/scripts run <script>`. Scripts can import any workspace package (e.g., `@workspace/db`) by adding it as a dependency in `scripts/package.json`.
+- `pnpm --filter @workspace/api-server run dev` — Start API server
+- `pnpm --filter @workspace/clinic-dashboard run dev` — Start frontend
+- `pnpm --filter @workspace/api-spec run codegen` — Regenerate API client/types
+- `pnpm --filter @workspace/db run push` — Push DB schema changes

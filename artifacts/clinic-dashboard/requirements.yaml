@@ -1,0 +1,10 @@
+packages:
+  "framer-motion": "For smooth page transitions and micro-interactions"
+  "recharts": "For beautiful dashboard charts"
+  "date-fns": "For formatting dates in logs and appointments"
+  "clsx": "Utility for constructing className strings conditionally"
+  "tailwind-merge": "Utility function to efficiently merge Tailwind CSS classes"
+
+notes:
+  - MVP relies on a single hardcoded clinic (ID = 1)
+  - React Query hooks are imported directly from `@workspace/api-client-react` as specified in implementation notes
