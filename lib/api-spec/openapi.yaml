@@ -21,6 +21,8 @@ tags:
     description: Appointment management
   - name: ai-logs
     description: AI interaction logs
+  - name: handoffs
+    description: Human attendant takeover of WhatsApp conversations
   - name: whatsapp
     description: WhatsApp webhook
 paths:
@@ -365,6 +367,62 @@ paths:
               schema:
                 $ref: "#/components/schemas/ProfessionalDetail"
 
+  /clinics/{clinicId}/professionals/{id}/schedule:
+    get:
+      operationId: getProfessionalSchedule
+      tags: [professionals]
+      summary: Get the weekly schedule of a professional
+      parameters:
+        - name: clinicId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of schedule entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProfessionalScheduleEntry"
+    put:
+      operationId: setProfessionalSchedule
+      tags: [professionals]
+      summary: Replace the full weekly schedule of a professional
+      parameters:
+        - name: clinicId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetProfessionalScheduleBody"
+      responses:
+        "200":
+          description: Updated schedule
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProfessionalScheduleEntry"
+
   /clinics/{clinicId}/patients:
     get:
       operationId: listPatients
@@ -507,13 +565,18 @@ paths:
           required: false
           schema:
             type: string
-            enum: [pending, confirmed, canceled]
+            enum: [pending, confirmed, canceled, scheduled]
         - name: professionalId
           in: query
           required: false
           schema:
             type: integer
         - name: patientId
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: serviceId
           in: query
           required: false
           schema:
@@ -557,6 +620,141 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Appointment"
+
+  /clinics/{clinicId}/handoffs:
+    get:
+      operationId: listHandoffs
+      tags: [handoffs]
+      summary: Lista handoffs ativos para a clínica
+      parameters:
+        - name: clinicId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Lista de handoffs ativos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Handoff"
+    post:
+      operationId: createHandoff
+      tags: [handoffs]
+      summary: Atendente assume uma conversa (pausa a IA)
+      parameters:
+        - name: clinicId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateHandoffBody"
+      responses:
+        "201":
+          description: Handoff criado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Handoff"
+        "409":
+          description: Já existe handoff ativo para esse telefone
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /clinics/{clinicId}/handoffs/{phone}:
+    delete:
+      operationId: deleteHandoff
+      tags: [handoffs]
+      summary: Encerra um handoff ativo
+      parameters:
+        - name: clinicId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: phone
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Handoff encerrado
+        "404":
+          description: Handoff não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /clinics/{clinicId}/handoffs/{phone}/messages:
+    get:
+      operationId: listHandoffMessages
+      tags: [handoffs]
+      summary: Histórico mesclado de mensagens (IA + atendente) para um paciente
+      parameters:
+        - name: clinicId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: phone
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Lista de mensagens
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ConversationHistoryItem"
+    post:
+      operationId: sendHandoffMessage
+      tags: [handoffs]
+      summary: Atendente envia mensagem pelo WhatsApp
+      parameters:
+        - name: clinicId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: phone
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendHandoffMessageBody"
+      responses:
+        "201":
+          description: Mensagem enviada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConversationHistoryItem"
 
   /clinics/{clinicId}/ai-logs:
     get:
@@ -638,14 +836,36 @@ components:
           type: string
         clinicType:
           type: string
-          enum: [medical, vet, dental]
+          enum: [medical, vet, dental, beauty, education, retail, food, technology, services, other]
+        aiExternalApiKey:
+          type: string
+          nullable: true
+          description: "Chave de API de IA externa (retornada mascarada: ****XXXX)"
+        asaasApiKey:
+          type: string
+          nullable: true
+          description: "Chave de integração Asaas (retornada mascarada: ****XXXX)"
+        whatsappPhoneNumberId:
+          type: string
+          nullable: true
+          description: "ID do número WhatsApp Business API"
+        whatsappAccessToken:
+          type: string
+          nullable: true
+          description: "Token de acesso WhatsApp Business API (retornado mascarado: ****XXXX)"
+        evolutionInstanceName:
+          type: string
+          nullable: true
+        aiEnabled:
+          type: boolean
+          description: "Se false, a IA não responde automaticamente pelo WhatsApp"
         createdAt:
           type: string
           format: date-time
         updatedAt:
           type: string
           format: date-time
-      required: [id, name, phone, apiKey, aiName, aiPersonalityPrompt, knowledgeBase, clinicType, createdAt, updatedAt]
+      required: [id, name, phone, apiKey, aiName, aiPersonalityPrompt, knowledgeBase, clinicType, aiEnabled, createdAt, updatedAt]
 
     CreateClinicBody:
       type: object
@@ -656,7 +876,7 @@ components:
           type: string
         clinicType:
           type: string
-          enum: [medical, vet, dental]
+          enum: [medical, vet, dental, beauty, education, retail, food, technology, services, other]
         aiName:
           type: string
         aiPersonalityPrompt:
@@ -678,7 +898,25 @@ components:
           type: string
         clinicType:
           type: string
-          enum: [medical, vet, dental]
+          enum: [medical, vet, dental, beauty, education, retail, food, technology, services, other]
+        aiExternalApiKey:
+          type: string
+          nullable: true
+          description: "Chave de API de IA externa — enviar o valor completo para atualizar"
+        asaasApiKey:
+          type: string
+          nullable: true
+          description: "Chave de integração Asaas — enviar o valor completo para atualizar"
+        whatsappPhoneNumberId:
+          type: string
+          nullable: true
+        whatsappAccessToken:
+          type: string
+          nullable: true
+          description: "Token de acesso WhatsApp Business API — enviar o valor completo para atualizar"
+        aiEnabled:
+          type: boolean
+          description: "Liga/desliga o atendimento automático por IA"
 
     Service:
       type: object
@@ -689,19 +927,25 @@ components:
           type: integer
         name:
           type: string
+        description:
+          type: ["string", "null"]
         price:
           type: number
         durationMinutes:
           type: integer
+        active:
+          type: boolean
         createdAt:
           type: string
           format: date-time
-      required: [id, clinicId, name, price, durationMinutes, createdAt]
+      required: [id, clinicId, name, price, durationMinutes, active, createdAt]
 
     CreateServiceBody:
       type: object
       properties:
         name:
+          type: string
+        description:
           type: string
         price:
           type: number
@@ -714,10 +958,14 @@ components:
       properties:
         name:
           type: string
+        description:
+          type: string
         price:
           type: number
         durationMinutes:
           type: integer
+        active:
+          type: boolean
 
     Professional:
       type: object
@@ -806,6 +1054,49 @@ components:
           items:
             type: integer
       required: [serviceIds]
+
+    ProfessionalScheduleEntry:
+      type: object
+      properties:
+        id:
+          type: integer
+        professionalId:
+          type: integer
+        dayOfWeek:
+          type: integer
+          description: 0=Sunday, 1=Monday … 6=Saturday
+        startMinute:
+          type: integer
+          description: Minutes since midnight (e.g. 480 = 08:00)
+        endMinute:
+          type: integer
+          description: Minutes since midnight (e.g. 1020 = 17:00)
+        isBlock:
+          type: boolean
+          description: false = work window, true = blocked slot (e.g. lunch break)
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, professionalId, dayOfWeek, startMinute, endMinute, isBlock, createdAt]
+
+    SetProfessionalScheduleBody:
+      type: object
+      properties:
+        entries:
+          type: array
+          items:
+            type: object
+            properties:
+              dayOfWeek:
+                type: integer
+              startMinute:
+                type: integer
+              endMinute:
+                type: integer
+              isBlock:
+                type: boolean
+            required: [dayOfWeek, startMinute, endMinute, isBlock]
+      required: [entries]
 
     Patient:
       type: object
@@ -916,7 +1207,7 @@ components:
           format: date-time
         status:
           type: string
-          enum: [pending, confirmed, canceled]
+          enum: [pending, confirmed, canceled, scheduled]
         paymentIntentId:
           type: ["string", "null"]
         notes:
@@ -931,11 +1222,14 @@ components:
       properties:
         status:
           type: string
-          enum: [pending, confirmed, canceled]
+          enum: [pending, confirmed, canceled, scheduled]
         notes:
           type: string
         professionalId:
           type: integer
+        scheduledAt:
+          type: string
+          format: date-time
 
     AiLog:
       type: object
@@ -959,6 +1253,59 @@ components:
           type: string
           format: date-time
       required: [id, clinicId, patientPhone, userMessage, aiResponse, tokensUsed, messageType, createdAt]
+
+    Handoff:
+      type: object
+      properties:
+        id:
+          type: integer
+        clinicId:
+          type: integer
+        patientPhone:
+          type: string
+        attendantId:
+          type: integer
+          nullable: true
+        startedAt:
+          type: string
+          format: date-time
+        endedAt:
+          type: string
+          format: date-time
+          nullable: true
+      required: [id, clinicId, patientPhone, startedAt]
+
+    CreateHandoffBody:
+      type: object
+      properties:
+        patientPhone:
+          type: string
+      required: [patientPhone]
+
+    ConversationHistoryItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        source:
+          type: string
+          enum: [ai, attendant, patient]
+          description: "ai = resposta da IA; attendant = resposta do atendente humano; patient = mensagem do paciente"
+        content:
+          type: string
+        patientPhone:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, source, content, patientPhone, createdAt]
+
+    SendHandoffMessageBody:
+      type: object
+      properties:
+        content:
+          type: string
+      required: [content]
 
     WhatsappWebhookBody:
       type: object

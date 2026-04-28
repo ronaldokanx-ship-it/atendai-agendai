@@ -1,0 +1,11 @@
+# Parte da imagem oficial Evolution API e atualiza o Baileys para versão mais recente
+# Necessário porque o Baileys bundled pode estar desatualizado
+# e o WhatsApp pode bloquear versões antigas do protocolo.
+FROM atendai/evolution-api:latest
+
+WORKDIR /evolution
+
+# Instala git (Alpine usa apk) e atualiza Baileys para versão mais recente
+RUN apk add --no-cache git \
+    && npm install @whiskeysockets/baileys@latest --save --legacy-peer-deps \
+    && apk del git

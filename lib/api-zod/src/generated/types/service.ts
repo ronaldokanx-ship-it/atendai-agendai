@@ -10,7 +10,10 @@ export interface Service {
   id: number;
   clinicId: number;
   name: string;
+  /** @nullable */
+  description?: string | null;
   price: number;
   durationMinutes: number;
+  active: boolean;
   createdAt: Date;
 }

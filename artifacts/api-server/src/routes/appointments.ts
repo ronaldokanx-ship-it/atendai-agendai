@@ -35,6 +35,9 @@ router.get("/clinics/:clinicId/appointments", async (req, res): Promise<void> =>
   if (query.data.patientId) {
     conditions.push(eq(appointmentsTable.patientId, query.data.patientId));
   }
+  if (query.data.serviceId) {
+    conditions.push(eq(appointmentsTable.serviceId, query.data.serviceId));
+  }
 
   const appointments = await db
     .select()

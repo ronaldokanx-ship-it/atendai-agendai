@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, and, inArray } from "drizzle-orm";
-import { db, professionalsTable, professionalServicesTable } from "@workspace/db";
+import { db, professionalsTable, professionalServicesTable, professionalSchedulesTable } from "@workspace/db";
 import {
   ListProfessionalsParams,
   ListProfessionalsQueryParams,
@@ -16,6 +16,9 @@ import {
   SetProfessionalServicesParams,
   SetProfessionalServicesBody,
   SetProfessionalServicesResponse,
+  GetProfessionalScheduleParams,
+  SetProfessionalScheduleParams,
+  SetProfessionalScheduleBody,
 } from "@workspace/api-zod";
 
 const router: IRouter = Router();
@@ -225,6 +228,58 @@ router.put("/clinics/:clinicId/professionals/:id/services", async (req, res): Pr
 
   const serviceIds = await getProfessionalServiceIds(params.data.id);
   res.json(SetProfessionalServicesResponse.parse({ ...professional, serviceIds }));
+});
+
+// ─── GET /clinics/:clinicId/professionals/:id/schedule ─────────────────────
+router.get("/clinics/:clinicId/professionals/:id/schedule", async (req, res): Promise<void> => {
+  const params = GetProfessionalScheduleParams.safeParse(req.params);
+  if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
+
+  const [prof] = await db
+    .select({ id: professionalsTable.id })
+    .from(professionalsTable)
+    .where(and(eq(professionalsTable.id, params.data.id), eq(professionalsTable.clinicId, params.data.clinicId)));
+  if (!prof) { res.status(404).json({ error: "Professional not found" }); return; }
+
+  const schedule = await db
+    .select()
+    .from(professionalSchedulesTable)
+    .where(eq(professionalSchedulesTable.professionalId, params.data.id))
+    .orderBy(professionalSchedulesTable.dayOfWeek, professionalSchedulesTable.startMinute);
+
+  res.json(schedule);
+});
+
+// ─── PUT /clinics/:clinicId/professionals/:id/schedule ──────────────────────
+router.put("/clinics/:clinicId/professionals/:id/schedule", async (req, res): Promise<void> => {
+  const params = SetProfessionalScheduleParams.safeParse(req.params);
+  if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
+
+  const parsed = SetProfessionalScheduleBody.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+
+  const [prof] = await db
+    .select({ id: professionalsTable.id })
+    .from(professionalsTable)
+    .where(and(eq(professionalsTable.id, params.data.id), eq(professionalsTable.clinicId, params.data.clinicId)));
+  if (!prof) { res.status(404).json({ error: "Professional not found" }); return; }
+
+  // Replace all entries atomically
+  await db.delete(professionalSchedulesTable).where(eq(professionalSchedulesTable.professionalId, params.data.id));
+
+  if (parsed.data.entries.length > 0) {
+    await db.insert(professionalSchedulesTable).values(
+      parsed.data.entries.map(e => ({ ...e, professionalId: params.data.id }))
+    );
+  }
+
+  const schedule = await db
+    .select()
+    .from(professionalSchedulesTable)
+    .where(eq(professionalSchedulesTable.professionalId, params.data.id))
+    .orderBy(professionalSchedulesTable.dayOfWeek, professionalSchedulesTable.startMinute);
+
+  res.json(schedule);
 });
 
 export default router;

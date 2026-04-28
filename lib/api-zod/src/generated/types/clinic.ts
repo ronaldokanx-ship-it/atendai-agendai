@@ -16,6 +16,17 @@ export interface Clinic {
   aiPersonalityPrompt: string;
   knowledgeBase: string;
   clinicType: ClinicClinicType;
+  /** Chave de API de IA externa (retornada mascarada: ****XXXX) */
+  aiExternalApiKey?: string | null;
+  /** Chave de integração Asaas (retornada mascarada: ****XXXX) */
+  asaasApiKey?: string | null;
+  /** ID do número WhatsApp Business API */
+  whatsappPhoneNumberId?: string | null;
+  /** Token de acesso WhatsApp Business API (retornado mascarado: ****XXXX) */
+  whatsappAccessToken?: string | null;
+  evolutionInstanceName?: string | null;
+  /** Se false, a IA não responde automaticamente pelo WhatsApp */
+  aiEnabled: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

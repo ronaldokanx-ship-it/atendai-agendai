@@ -38,9 +38,9 @@ export function Modal({ isOpen, onClose, title, description, children }: ModalPr
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="w-full max-w-lg bg-card rounded-2xl shadow-xl pointer-events-auto border border-border/50 overflow-hidden"
+              className="w-full max-w-lg bg-card rounded-2xl shadow-xl pointer-events-auto border border-border/50 overflow-hidden flex flex-col max-h-[90vh]"
             >
-              <div className="flex items-center justify-between p-6 border-b border-border/50">
+              <div className="flex items-center justify-between p-6 border-b border-border/50 shrink-0">
                 <div>
                   <h2 className="text-xl font-display font-semibold">{title}</h2>
                   {description && <p className="text-sm text-muted-foreground mt-1">{description}</p>}
@@ -52,7 +52,7 @@ export function Modal({ isOpen, onClose, title, description, children }: ModalPr
                   <X className="h-5 w-5 text-muted-foreground" />
                 </button>
               </div>
-              <div className="p-6">
+              <div className="p-6 overflow-y-auto">
                 {children}
               </div>
             </motion.div>

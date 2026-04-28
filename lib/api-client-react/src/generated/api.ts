@@ -20,21 +20,28 @@ import type {
   AiLog,
   Appointment,
   Clinic,
+  ConversationHistoryItem,
   CreateClinicBody,
+  CreateHandoffBody,
   CreatePatientBody,
   CreateProfessionalBody,
   CreateServiceBody,
   ErrorResponse,
+  Handoff,
   HealthStatus,
   ListAiLogsParams,
   ListAppointmentsParams,
+  ListHandoffMessagesParams,
   ListPatientsParams,
   ListProfessionalsParams,
   Patient,
   PatientDetail,
   Professional,
   ProfessionalDetail,
+  ProfessionalScheduleEntry,
+  SendHandoffMessageBody,
   Service,
+  SetProfessionalScheduleBody,
   SetProfessionalServicesBody,
   UpdateAppointmentBody,
   UpdateClinicBody,
@@ -1383,6 +1390,212 @@ export const useSetProfessionalServices = <
 };
 
 /**
+ * @summary Get the weekly schedule of a professional
+ */
+export const getGetProfessionalScheduleUrl = (clinicId: number, id: number) => {
+  return `/api/clinics/${clinicId}/professionals/${id}/schedule`;
+};
+
+export const getProfessionalSchedule = async (
+  clinicId: number,
+  id: number,
+  options?: RequestInit,
+): Promise<ProfessionalScheduleEntry[]> => {
+  return customFetch<ProfessionalScheduleEntry[]>(
+    getGetProfessionalScheduleUrl(clinicId, id),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetProfessionalScheduleQueryKey = (
+  clinicId: number,
+  id: number,
+) => {
+  return [`/api/clinics/${clinicId}/professionals/${id}/schedule`] as const;
+};
+
+export const getGetProfessionalScheduleQueryOptions = <
+  TData = Awaited<ReturnType<typeof getProfessionalSchedule>>,
+  TError = ErrorType<unknown>,
+>(
+  clinicId: number,
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getProfessionalSchedule>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetProfessionalScheduleQueryKey(clinicId, id);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getProfessionalSchedule>>
+  > = ({ signal }) =>
+    getProfessionalSchedule(clinicId, id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!(clinicId && id),
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getProfessionalSchedule>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetProfessionalScheduleQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getProfessionalSchedule>>
+>;
+export type GetProfessionalScheduleQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get the weekly schedule of a professional
+ */
+
+export function useGetProfessionalSchedule<
+  TData = Awaited<ReturnType<typeof getProfessionalSchedule>>,
+  TError = ErrorType<unknown>,
+>(
+  clinicId: number,
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getProfessionalSchedule>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetProfessionalScheduleQueryOptions(
+    clinicId,
+    id,
+    options,
+  );
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Replace the full weekly schedule of a professional
+ */
+export const getSetProfessionalScheduleUrl = (clinicId: number, id: number) => {
+  return `/api/clinics/${clinicId}/professionals/${id}/schedule`;
+};
+
+export const setProfessionalSchedule = async (
+  clinicId: number,
+  id: number,
+  setProfessionalScheduleBody: SetProfessionalScheduleBody,
+  options?: RequestInit,
+): Promise<ProfessionalScheduleEntry[]> => {
+  return customFetch<ProfessionalScheduleEntry[]>(
+    getSetProfessionalScheduleUrl(clinicId, id),
+    {
+      ...options,
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(setProfessionalScheduleBody),
+    },
+  );
+};
+
+export const getSetProfessionalScheduleMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof setProfessionalSchedule>>,
+    TError,
+    {
+      clinicId: number;
+      id: number;
+      data: BodyType<SetProfessionalScheduleBody>;
+    },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof setProfessionalSchedule>>,
+  TError,
+  { clinicId: number; id: number; data: BodyType<SetProfessionalScheduleBody> },
+  TContext
+> => {
+  const mutationKey = ["setProfessionalSchedule"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof setProfessionalSchedule>>,
+    {
+      clinicId: number;
+      id: number;
+      data: BodyType<SetProfessionalScheduleBody>;
+    }
+  > = (props) => {
+    const { clinicId, id, data } = props ?? {};
+
+    return setProfessionalSchedule(clinicId, id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SetProfessionalScheduleMutationResult = NonNullable<
+  Awaited<ReturnType<typeof setProfessionalSchedule>>
+>;
+export type SetProfessionalScheduleMutationBody =
+  BodyType<SetProfessionalScheduleBody>;
+export type SetProfessionalScheduleMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Replace the full weekly schedule of a professional
+ */
+export const useSetProfessionalSchedule = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof setProfessionalSchedule>>,
+    TError,
+    {
+      clinicId: number;
+      id: number;
+      data: BodyType<SetProfessionalScheduleBody>;
+    },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof setProfessionalSchedule>>,
+  TError,
+  { clinicId: number; id: number; data: BodyType<SetProfessionalScheduleBody> },
+  TContext
+> => {
+  return useMutation(getSetProfessionalScheduleMutationOptions(options));
+};
+
+/**
  * @summary List patients for a clinic
  */
 export const getListPatientsUrl = (
@@ -2048,6 +2261,483 @@ export const useUpdateAppointment = <
   TContext
 > => {
   return useMutation(getUpdateAppointmentMutationOptions(options));
+};
+
+/**
+ * @summary Lista handoffs ativos para a clínica
+ */
+export const getListHandoffsUrl = (clinicId: number) => {
+  return `/api/clinics/${clinicId}/handoffs`;
+};
+
+export const listHandoffs = async (
+  clinicId: number,
+  options?: RequestInit,
+): Promise<Handoff[]> => {
+  return customFetch<Handoff[]>(getListHandoffsUrl(clinicId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListHandoffsQueryKey = (clinicId: number) => {
+  return [`/api/clinics/${clinicId}/handoffs`] as const;
+};
+
+export const getListHandoffsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listHandoffs>>,
+  TError = ErrorType<unknown>,
+>(
+  clinicId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listHandoffs>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListHandoffsQueryKey(clinicId);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listHandoffs>>> = ({
+    signal,
+  }) => listHandoffs(clinicId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!clinicId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof listHandoffs>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListHandoffsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listHandoffs>>
+>;
+export type ListHandoffsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Lista handoffs ativos para a clínica
+ */
+
+export function useListHandoffs<
+  TData = Awaited<ReturnType<typeof listHandoffs>>,
+  TError = ErrorType<unknown>,
+>(
+  clinicId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listHandoffs>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListHandoffsQueryOptions(clinicId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Atendente assume uma conversa (pausa a IA)
+ */
+export const getCreateHandoffUrl = (clinicId: number) => {
+  return `/api/clinics/${clinicId}/handoffs`;
+};
+
+export const createHandoff = async (
+  clinicId: number,
+  createHandoffBody: CreateHandoffBody,
+  options?: RequestInit,
+): Promise<Handoff> => {
+  return customFetch<Handoff>(getCreateHandoffUrl(clinicId), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createHandoffBody),
+  });
+};
+
+export const getCreateHandoffMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createHandoff>>,
+    TError,
+    { clinicId: number; data: BodyType<CreateHandoffBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createHandoff>>,
+  TError,
+  { clinicId: number; data: BodyType<CreateHandoffBody> },
+  TContext
+> => {
+  const mutationKey = ["createHandoff"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createHandoff>>,
+    { clinicId: number; data: BodyType<CreateHandoffBody> }
+  > = (props) => {
+    const { clinicId, data } = props ?? {};
+
+    return createHandoff(clinicId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateHandoffMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createHandoff>>
+>;
+export type CreateHandoffMutationBody = BodyType<CreateHandoffBody>;
+export type CreateHandoffMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Atendente assume uma conversa (pausa a IA)
+ */
+export const useCreateHandoff = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createHandoff>>,
+    TError,
+    { clinicId: number; data: BodyType<CreateHandoffBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createHandoff>>,
+  TError,
+  { clinicId: number; data: BodyType<CreateHandoffBody> },
+  TContext
+> => {
+  return useMutation(getCreateHandoffMutationOptions(options));
+};
+
+/**
+ * @summary Encerra um handoff ativo
+ */
+export const getDeleteHandoffUrl = (clinicId: number, phone: string) => {
+  return `/api/clinics/${clinicId}/handoffs/${phone}`;
+};
+
+export const deleteHandoff = async (
+  clinicId: number,
+  phone: string,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getDeleteHandoffUrl(clinicId, phone), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteHandoffMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteHandoff>>,
+    TError,
+    { clinicId: number; phone: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteHandoff>>,
+  TError,
+  { clinicId: number; phone: string },
+  TContext
+> => {
+  const mutationKey = ["deleteHandoff"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteHandoff>>,
+    { clinicId: number; phone: string }
+  > = (props) => {
+    const { clinicId, phone } = props ?? {};
+
+    return deleteHandoff(clinicId, phone, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteHandoffMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteHandoff>>
+>;
+
+export type DeleteHandoffMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Encerra um handoff ativo
+ */
+export const useDeleteHandoff = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteHandoff>>,
+    TError,
+    { clinicId: number; phone: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteHandoff>>,
+  TError,
+  { clinicId: number; phone: string },
+  TContext
+> => {
+  return useMutation(getDeleteHandoffMutationOptions(options));
+};
+
+/**
+ * @summary Histórico mesclado de mensagens (IA + atendente) para um paciente
+ */
+export const getListHandoffMessagesUrl = (
+  clinicId: number,
+  phone: string,
+  params?: ListHandoffMessagesParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/clinics/${clinicId}/handoffs/${phone}/messages?${stringifiedParams}`
+    : `/api/clinics/${clinicId}/handoffs/${phone}/messages`;
+};
+
+export const listHandoffMessages = async (
+  clinicId: number,
+  phone: string,
+  params?: ListHandoffMessagesParams,
+  options?: RequestInit,
+): Promise<ConversationHistoryItem[]> => {
+  return customFetch<ConversationHistoryItem[]>(
+    getListHandoffMessagesUrl(clinicId, phone, params),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getListHandoffMessagesQueryKey = (
+  clinicId: number,
+  phone: string,
+  params?: ListHandoffMessagesParams,
+) => {
+  return [
+    `/api/clinics/${clinicId}/handoffs/${phone}/messages`,
+    ...(params ? [params] : []),
+  ] as const;
+};
+
+export const getListHandoffMessagesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listHandoffMessages>>,
+  TError = ErrorType<unknown>,
+>(
+  clinicId: number,
+  phone: string,
+  params?: ListHandoffMessagesParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listHandoffMessages>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getListHandoffMessagesQueryKey(clinicId, phone, params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listHandoffMessages>>
+  > = ({ signal }) =>
+    listHandoffMessages(clinicId, phone, params, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!(clinicId && phone),
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof listHandoffMessages>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListHandoffMessagesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listHandoffMessages>>
+>;
+export type ListHandoffMessagesQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Histórico mesclado de mensagens (IA + atendente) para um paciente
+ */
+
+export function useListHandoffMessages<
+  TData = Awaited<ReturnType<typeof listHandoffMessages>>,
+  TError = ErrorType<unknown>,
+>(
+  clinicId: number,
+  phone: string,
+  params?: ListHandoffMessagesParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listHandoffMessages>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListHandoffMessagesQueryOptions(
+    clinicId,
+    phone,
+    params,
+    options,
+  );
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Atendente envia mensagem pelo WhatsApp
+ */
+export const getSendHandoffMessageUrl = (clinicId: number, phone: string) => {
+  return `/api/clinics/${clinicId}/handoffs/${phone}/messages`;
+};
+
+export const sendHandoffMessage = async (
+  clinicId: number,
+  phone: string,
+  sendHandoffMessageBody: SendHandoffMessageBody,
+  options?: RequestInit,
+): Promise<ConversationHistoryItem> => {
+  return customFetch<ConversationHistoryItem>(
+    getSendHandoffMessageUrl(clinicId, phone),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(sendHandoffMessageBody),
+    },
+  );
+};
+
+export const getSendHandoffMessageMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof sendHandoffMessage>>,
+    TError,
+    { clinicId: number; phone: string; data: BodyType<SendHandoffMessageBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof sendHandoffMessage>>,
+  TError,
+  { clinicId: number; phone: string; data: BodyType<SendHandoffMessageBody> },
+  TContext
+> => {
+  const mutationKey = ["sendHandoffMessage"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof sendHandoffMessage>>,
+    { clinicId: number; phone: string; data: BodyType<SendHandoffMessageBody> }
+  > = (props) => {
+    const { clinicId, phone, data } = props ?? {};
+
+    return sendHandoffMessage(clinicId, phone, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SendHandoffMessageMutationResult = NonNullable<
+  Awaited<ReturnType<typeof sendHandoffMessage>>
+>;
+export type SendHandoffMessageMutationBody = BodyType<SendHandoffMessageBody>;
+export type SendHandoffMessageMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Atendente envia mensagem pelo WhatsApp
+ */
+export const useSendHandoffMessage = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof sendHandoffMessage>>,
+    TError,
+    { clinicId: number; phone: string; data: BodyType<SendHandoffMessageBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof sendHandoffMessage>>,
+  TError,
+  { clinicId: number; phone: string; data: BodyType<SendHandoffMessageBody> },
+  TContext
+> => {
+  return useMutation(getSendHandoffMessageMutationOptions(options));
 };
 
 /**

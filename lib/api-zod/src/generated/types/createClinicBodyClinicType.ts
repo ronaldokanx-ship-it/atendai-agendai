@@ -13,4 +13,11 @@ export const CreateClinicBodyClinicType = {
   medical: "medical",
   vet: "vet",
   dental: "dental",
+  beauty: "beauty",
+  education: "education",
+  retail: "retail",
+  food: "food",
+  technology: "technology",
+  services: "services",
+  other: "other",
 } as const;

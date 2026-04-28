@@ -1,17 +1,26 @@
-import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
-import { db, clinicsTable } from "@workspace/db";
+import { Router, type IRouter, type Request, type Response } from "express";
+import { eq, and, isNull } from "drizzle-orm";
+import { db, clinicsTable, aiLogsTable, handoffsTable, handoffMessagesTable, patientsTable } from "@workspace/db";
 import { WhatsappWebhookBody, WhatsappWebhookResponse } from "@workspace/api-zod";
-import { processWhatsAppMessage, transcribeAudio } from "../lib/ai-orchestrator";
+import { processWhatsAppMessage, transcribeAudio, buildAvailabilityList } from "../lib/ai-orchestrator";
+import { sendTextMessage, sendTypingPresence, sendListMessage, sendButtonMessage, isEvolutionConfigured } from "../lib/evolution-api";
+import {
+  isSchedulingIntent,
+  isManagementIntent,
+  hasActiveSchedulingSession,
+  handleSchedulingSelection,
+  handleSchedulingFreeText,
+  startSchedulingFlow,
+  startManagementFlow,
+  clearSchedulingSession,
+} from "../lib/scheduling-flow";
 
 const router: IRouter = Router();
 
-/**
- * Main WhatsApp webhook endpoint.
- * Receives messages from Evolution API or Baileys-compatible setups.
- * Identifies the clinic by API key, loads its AI config, and responds
- * using OpenAI Function Calling to handle scheduling and FAQ queries.
- */
+// ─────────────────────────────────────────────────────────────────────────────
+// Webhook genérico (formato legado customizado)
+// Utilizado por integrações que enviam { apiKey, from, message, ... }
+// ─────────────────────────────────────────────────────────────────────────────
 router.post("/whatsapp/webhook", async (req, res): Promise<void> => {
   const parsed = WhatsappWebhookBody.safeParse(req.body);
   if (!parsed.success) {
@@ -58,6 +67,7 @@ router.post("/whatsapp/webhook", async (req, res): Promise<void> => {
       aiPersonalityPrompt: clinic.aiPersonalityPrompt,
       knowledgeBase: clinic.knowledgeBase,
       clinicType: clinic.clinicType,
+      schedulingEnabled: clinic.schedulingEnabled ?? true,
     },
   });
 
@@ -66,7 +76,450 @@ router.post("/whatsapp/webhook", async (req, res): Promise<void> => {
   res.json(WhatsappWebhookResponse.parse({
     reply: result.reply,
     appointmentId: result.appointmentId ?? null,
+    interactiveList: result.interactiveList ?? null,
   }));
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Webhook Evolution API
+//
+// Suporta dois modos:
+//   1. webhookByEvents=false → POST /api/whatsapp/evolution  (campo "event" no body)
+//   2. webhookByEvents=true  → POST /api/whatsapp/evolution/MESSAGES_UPSERT  (sufixo)
+//                              POST /api/whatsapp/evolution/MESSAGES_UPDATE
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Rotas com sufixo (webhookByEvents=true) — normaliza para o handler principal
+router.post("/whatsapp/evolution/MESSAGES_UPSERT", (req, res, next) => {
+  req.body = { ...req.body, event: "messages.upsert" };
+  next();
+}, handleEvolutionWebhook);
+
+router.post("/whatsapp/evolution/MESSAGES_UPDATE", (req, res, next) => {
+  req.body = { ...req.body, event: "messages.update" };
+  next();
+}, handleEvolutionWebhook);
+
+// Rota base (webhookByEvents=false)
+router.post("/whatsapp/evolution", handleEvolutionWebhook);
+
+async function handleEvolutionWebhook(req: Request, res: Response): Promise<void> {
+  // Responde imediatamente com 200 para não bloquear a Evolution API
+  res.status(200).json({ ok: true });
+
+  const payload = req.body as EvolutionWebhookPayload;
+  const { event, instance, data } = payload ?? {};
+  if (!event || !instance) return;
+
+  // ── Atualização de status (DELIVERY_ACK, READ, etc.) ─────────────────────
+  if (event === "messages.update") {
+    const updates: EvolutionStatusUpdate[] = Array.isArray(data) ? data : [data];
+    for (const update of updates) {
+      const msgId = update?.key?.id;
+      const status = update?.update?.status;
+      if (!msgId || !status) continue;
+      try {
+        await db.update(aiLogsTable).set({ deliveryStatus: status }).where(eq(aiLogsTable.whatsappMessageId, msgId));
+        req.log.info({ msgId, status, instance }, "[Evolution] Status de entrega atualizado");
+      } catch (err) {
+        req.log.error({ err, msgId }, "[Evolution] Erro ao atualizar status de entrega");
+      }
+    }
+    return;
+  }
+
+  // ── Mensagem recebida ─────────────────────────────────────────────────────
+  if (event !== "messages.upsert") return;
+
+  const msgData = data as EvolutionMessageData;
+  if (msgData?.key?.fromMe) return;
+  const remoteJid = msgData?.key?.remoteJid ?? "";
+  if (remoteJid.endsWith("@g.us")) return;
+
+  const rawPhone = remoteJid.replace("@s.whatsapp.net", "").replace(/\D/g, "");
+  if (!rawPhone) return;
+
+  const msgType = msgData.messageType ?? "";
+  const isAudio = msgType === "audioMessage" || msgType === "pttMessage";
+  const isListResponse = msgType === "listResponseMessage";
+  const isButtonResponse = msgType === "buttonsResponseMessage";
+
+  // ── Extrai texto dependendo do tipo de mensagem ───────────────────────────
+  let textMessage = "";
+  let paginationAction: { date: string; serviceId?: number; professionalId?: number; offset: number } | null = null;
+  let rawSelectedId = ""; // ID original para roteamento do fluxo de agendamento
+
+  if (isListResponse) {
+    const listMsg = msgData.message as EvolutionListResponseMessage | undefined;
+    const listResp = listMsg?.listResponseMessage;
+    const selectedId = listResp?.singleSelectReply?.selectedRowId ?? "";
+    const selectedTitle = listResp?.title ?? "";
+    rawSelectedId = selectedId;
+
+    if (selectedId.startsWith("M|")) {
+      // Paginação direta — será tratada sem envolver a IA
+      const [, date, svcStr, profStr, offsetStr] = selectedId.split("|");
+      paginationAction = {
+        date,
+        serviceId: svcStr ? Number(svcStr) : undefined,
+        professionalId: profStr ? Number(profStr) : undefined,
+        offset: Number(offsetStr) || 0,
+      };
+    } else if (selectedId.startsWith("DATE|") || /^date_\d{4}-\d{2}-\d{2}$/.test(selectedId)) {
+      // Seleção de data de find_available_dates ou list_options normalizado
+      const date = selectedId.startsWith("DATE|") ? selectedId.slice(5) : selectedId.slice(5);
+      paginationAction = { date, offset: 0 };
+    } else if (selectedId === "OD") {
+      textMessage = "Quero ver horários em outro dia. Para qual data?";
+    } else if (selectedId.startsWith("S|")) {
+      // Slot selecionado: S|profId|svcId|isoSlot
+      const [, profId, svcId, isoSlot] = selectedId.split("|");
+      const time = new Date(isoSlot).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "UTC" });
+      const dateStr = new Date(isoSlot).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "UTC" });
+      textMessage = `[SELEÇÃO] Paciente selecionou ${time} em ${dateStr}. Use book_appointment com professionalId:${profId}${svcId ? ` serviceId:${svcId}` : ""} scheduledAt:${isoSlot}`;
+    } else {
+      // Opção genérica de list_options (serviço, profissional, confirmação, etc.)
+      textMessage = selectedTitle || selectedId;
+    }
+  } else if (isButtonResponse) {
+    const btnMsg = msgData.message as EvolutionButtonResponseMessage | undefined;
+    const btnResp = btnMsg?.buttonsResponseMessage;
+    const btnId = btnResp?.selectedButtonId ?? "";
+    rawSelectedId = btnId;
+    if (btnId.startsWith("DATE|") || /^date_\d{4}-\d{2}-\d{2}$/.test(btnId)) {
+      const date = btnId.startsWith("DATE|") ? btnId.slice(5) : btnId.slice(5);
+      paginationAction = { date, offset: 0 };
+    } else {
+      textMessage = btnResp?.selectedDisplayText ?? btnId;
+    }
+  } else {
+    textMessage =
+      msgData.message?.conversation ??
+      msgData.message?.extendedTextMessage?.text ??
+      "";
+  }
+
+  if (!isAudio && !isListResponse && !isButtonResponse && !textMessage.trim()) return;
+  if ((isListResponse || isButtonResponse) && !textMessage && !paginationAction) return;
+
+  // ── Busca clínica pela instância ──────────────────────────────────────────
+  const [clinic] = await db.select().from(clinicsTable).where(eq(clinicsTable.evolutionInstanceName, instance));
+  if (!clinic) {
+    req.log.warn({ instance }, "[Evolution] Instância não mapeada. Configure em Integrações > WhatsApp.");
+    return;
+  }
+
+  // ── Paginação sem IA: "Ver mais horários" ─────────────────────────────────
+  if (paginationAction) {
+    const { date, serviceId, professionalId, offset } = paginationAction;
+    // DATE| com sessão de agendamento ativa → delegar ao fluxo guiado (usa serviceId/profId da sessão)
+    if (rawSelectedId.startsWith("DATE|") && hasActiveSchedulingSession(clinic.id, rawPhone)) {
+      await handleSchedulingSelection({
+        clinicId: clinic.id,
+        phone: rawPhone,
+        instance,
+        selectedId: rawSelectedId,
+        clinicName: clinic.name,
+      });
+      return;
+    }
+    const { interactiveList } = await buildAvailabilityList(clinic.id, date, serviceId, professionalId, offset);
+    if (interactiveList) {
+      await sendTypingPresence(instance, rawPhone);
+      await sendListMessage(instance, rawPhone, {
+        title: interactiveList.header,
+        description: interactiveList.body,
+        buttonText: interactiveList.buttonText,
+        sections: interactiveList.sections.map(s => ({
+          title: s.title,
+          rows: s.rows.map(r => ({ rowId: r.id, title: r.title, description: r.description })),
+        })),
+      });
+    }
+    return;
+  }
+
+  // ── Comando especial: reiniciar conversa ──────────────────────────────────
+  if (textMessage.trim().toLowerCase() === "reiniciarx") {
+    await db.delete(aiLogsTable).where(and(eq(aiLogsTable.clinicId, clinic.id), eq(aiLogsTable.patientPhone, rawPhone)));
+    clearSchedulingSession(clinic.id, rawPhone);
+    await sendTextMessage(instance, rawPhone, "Conversa reiniciada! Como posso ajudar? 😊");
+    req.log.info({ clinicId: clinic.id, from: rawPhone }, "[Evolution] Conversa reiniciada pelo usuário");
+    return;
+  }
+
+  req.log.info({ clinicId: clinic.id, from: rawPhone, msgType, instance }, "[Evolution] Mensagem recebida — processando com IA");
+
+  // ── Guard: Handoff ativo ou IA desativada → salva msg e não chama IA ──────
+  const [activeHandoff] = await db
+    .select({ id: handoffsTable.id })
+    .from(handoffsTable)
+    .where(and(eq(handoffsTable.clinicId, clinic.id), eq(handoffsTable.patientPhone, rawPhone), isNull(handoffsTable.endedAt)));
+
+  if (activeHandoff || !clinic.aiEnabled) {
+    await db.insert(handoffMessagesTable).values({
+      clinicId: clinic.id,
+      patientPhone: rawPhone,
+      direction: "in",
+      content: textMessage || "(mensagem sem texto)",
+    });
+    req.log.info({ clinicId: clinic.id, from: rawPhone, reason: activeHandoff ? "handoff_ativo" : "ai_desativada" }, "[Evolution] Mensagem ignorada pela IA");
+    return;
+  }
+
+  // ── Transcrição de áudio ──────────────────────────────────────────────────
+  if (isAudio && msgData.message?.audioMessage?.url) {
+    try {
+      textMessage = await transcribeAudio(msgData.message.audioMessage.url);
+      req.log.info({ transcript: textMessage }, "[Evolution] Áudio transcrito com sucesso");
+    } catch (err) {
+      req.log.error({ err }, "[Evolution] Falha na transcrição de áudio");
+      textMessage = "(mensagem de áudio — não foi possível transcrever)";
+    }
+  }
+
+  if (!textMessage.trim() && !rawSelectedId) return;
+
+  // ── Fluxo de agendamento determinístico ───────────────────────────────────
+  // Intercept ANTES de chamar a IA — responde com state machine sem consumir tokens
+  {
+    const sfHasSession = hasActiveSchedulingSession(clinic.id, rawPhone);
+
+    // Prefixos de seleção do fluxo guiado
+    const isSchedulingSelection =
+      rawSelectedId.startsWith("SVC|") ||
+      rawSelectedId.startsWith("PRF|") ||
+      rawSelectedId.startsWith("CNF|") ||
+      rawSelectedId.startsWith("APPT|") ||
+      rawSelectedId.startsWith("CNC|") ||
+      rawSelectedId.startsWith("RMK|") ||
+      rawSelectedId.startsWith("S|"); // Sempre intercepta S| para garantir confirmação antes do booking
+
+    if (isSchedulingSelection) {
+      try {
+        const handled = await handleSchedulingSelection({
+          clinicId: clinic.id,
+          phone: rawPhone,
+          instance,
+          selectedId: rawSelectedId,
+          clinicName: clinic.name,
+        });
+        if (handled) return;
+      } catch (err) {
+        req.log.error({ err, selectedId: rawSelectedId }, "[SchedulingFlow] Erro ao processar seleção — encerrando sessão");
+        clearSchedulingSession(clinic.id, rawPhone);
+        await sendTextMessage(instance, rawPhone,
+          "❌ Ocorreu um erro ao processar sua seleção. Por favor, tente novamente ou entre em contato com a clínica.",
+        ).catch(() => {});
+        return;
+      }
+    } else if (textMessage.trim()) {
+      if (sfHasSession) {
+        // Texto durante sessão ativa — scheduling flow decide se trata ou passa à IA
+        const [patient] = await db
+          .select({ name: patientsTable.name })
+          .from(patientsTable)
+          .where(and(eq(patientsTable.clinicId, clinic.id), eq(patientsTable.phone, rawPhone)))
+          .limit(1);
+
+        try {
+          const handled = await handleSchedulingFreeText({
+            clinicId: clinic.id,
+            phone: rawPhone,
+            instance,
+            message: textMessage,
+            clinicName: clinic.name,
+            patientName: patient?.name,
+          });
+          if (handled) return;
+        } catch (err) {
+          req.log.error({ err }, "[SchedulingFlow] Erro ao processar texto livre — passando à IA");
+          // Não encerra sessão — deixa a IA tentar responder
+        }
+      } else if ((clinic.schedulingEnabled ?? true) && isManagementIntent(textMessage)) {
+        // Intenção de gerenciar agendamentos (consultar, cancelar, remarcar)
+        req.log.info({ clinicId: clinic.id, from: rawPhone }, "[SchedulingFlow] Intenção de gestão detectada — listando agendamentos");
+        if (isEvolutionConfigured()) {
+          try {
+            await startManagementFlow({ clinicId: clinic.id, phone: rawPhone, instance });
+          } catch (err) {
+            req.log.error({ err }, "[SchedulingFlow] Erro ao listar agendamentos — passando à IA");
+            clearSchedulingSession(clinic.id, rawPhone);
+          } finally {
+            return;
+          }
+        }
+        return;
+      } else if ((clinic.schedulingEnabled ?? true) && isSchedulingIntent(textMessage)) {
+        // Nova intenção de agendamento detectada → inicia fluxo guiado
+        req.log.info({ clinicId: clinic.id, from: rawPhone }, "[SchedulingFlow] Intenção detectada — iniciando fluxo guiado");
+
+        const [patient] = await db
+          .select({ name: patientsTable.name })
+          .from(patientsTable)
+          .where(and(eq(patientsTable.clinicId, clinic.id), eq(patientsTable.phone, rawPhone)))
+          .limit(1);
+
+        if (isEvolutionConfigured()) {
+          try {
+            await startSchedulingFlow({
+              clinicId: clinic.id,
+              phone: rawPhone,
+              instance,
+              clinicName: clinic.name,
+              patientName: patient?.name,
+            });
+          } catch (err) {
+            req.log.error({ err }, "[SchedulingFlow] Erro ao iniciar fluxo — passando à IA");
+            clearSchedulingSession(clinic.id, rawPhone);
+            // Fallthrough para a IA responder normalmente
+          } finally {
+            return; // sempre retorna após tentativa de iniciar o fluxo
+          }
+        }
+        return;
+      }
+    }
+  }
+
+  if (!textMessage.trim()) return;
+
+  // ── Processa com IA ───────────────────────────────────────────────────────
+  let result: Awaited<ReturnType<typeof processWhatsAppMessage>>;
+  try {
+    result = await processWhatsAppMessage({
+      clinicId: clinic.id,
+      patientPhone: rawPhone,
+      userMessage: textMessage,
+      messageType: isAudio ? "audio" : "text",
+      clinic: {
+        id: clinic.id,
+        aiName: clinic.aiName,
+        aiPersonalityPrompt: clinic.aiPersonalityPrompt,
+        knowledgeBase: clinic.knowledgeBase,
+        clinicType: clinic.clinicType,
+        schedulingEnabled: clinic.schedulingEnabled ?? true,
+      },
+    });
+  } catch (err) {
+    req.log.error({ err }, "[Evolution] Todos os provedores de IA indisponíveis — enviando mensagem de fallback");
+    // Degradação graceful: avisa o paciente sem travar o fluxo
+    if (isEvolutionConfigured()) {
+      await sendTextMessage(instance, rawPhone,
+        "Desculpe, estou com uma dificuldade técnica momentânea. Pode tentar novamente em alguns minutos? 🙏"
+      ).catch(() => {});
+    }
+    return; // NUNCA relançar — res.status(200) já foi enviado no início do handler
+  }
+
+  req.log.info({ clinicId: clinic.id, tokensUsed: result.tokensUsed }, "[Evolution] Resposta da IA gerada");
+
+  if (!isEvolutionConfigured()) {
+    req.log.warn("[Evolution] EVOLUTION_API_URL ou EVOLUTION_API_KEY ausentes — resposta não enviada");
+    return;
+  }
+
+  await sendTypingPresence(instance, rawPhone);
+
+  // ── Envia resposta: lista, botões ou texto ────────────────────────────────
+  let whatsappMessageId: string | null = null;
+
+  if (result.interactiveList) {
+    // Lista de horários disponíveis
+    const il = result.interactiveList;
+    whatsappMessageId = await sendListMessage(instance, rawPhone, {
+      title: il.header,
+      description: il.body,
+      buttonText: il.buttonText,
+      sections: il.sections.map(s => ({
+        title: s.title,
+        rows: s.rows.map(r => ({ rowId: r.id, title: r.title, description: r.description })),
+      })),
+    });
+    // Se o envio da lista falhar, envia como texto de fallback
+    if (!whatsappMessageId) {
+      whatsappMessageId = await sendTextMessage(instance, rawPhone, result.reply);
+    }
+  } else if (result.interactiveChoice) {
+    // Botões (≤3) ou lista de opções (>3)
+    const ic = result.interactiveChoice;
+    if (ic.options.length <= 3) {
+      whatsappMessageId = await sendButtonMessage(instance, rawPhone, {
+        title: ic.header,
+        description: ic.body,
+        footerText: ic.footerText,
+        buttons: ic.options.map(o => ({ buttonId: o.id, displayText: o.label })),
+      });
+    } else {
+      whatsappMessageId = await sendListMessage(instance, rawPhone, {
+        title: ic.header,
+        description: ic.body,
+        footerText: ic.footerText,
+        buttonText: "Ver opções",
+        sections: [{
+          title: "Opções disponíveis",
+          rows: ic.options.map(o => ({ rowId: o.id, title: o.label, description: o.description })),
+        }],
+      });
+    }
+    // Fallback para texto
+    if (!whatsappMessageId) {
+      whatsappMessageId = await sendTextMessage(instance, rawPhone, result.reply);
+    }
+  } else {
+    // Texto simples
+    whatsappMessageId = await sendTextMessage(instance, rawPhone, result.reply);
+  }
+
+  // Vincula o ID da mensagem ao log para rastreio de entrega/leitura
+  if (whatsappMessageId && result.logId) {
+    try {
+      await db.update(aiLogsTable).set({ whatsappMessageId, deliveryStatus: "PENDING" }).where(eq(aiLogsTable.id, result.logId));
+    } catch (err) {
+      req.log.error({ err }, "[Evolution] Erro ao vincular messageId ao log");
+    }
+  }
+}
+
+// ─── Tipos internos dos payloads da Evolution API ────────────────────────────
+
+interface EvolutionWebhookPayload {
+  event: string;
+  instance: string;
+  data: unknown;
+}
+
+interface EvolutionStatusUpdate {
+  key?: { id?: string; remoteJid?: string; fromMe?: boolean };
+  update?: { status?: string };
+}
+
+interface EvolutionMessageData {
+  key: { remoteJid: string; fromMe: boolean; id: string };
+  messageType?: string;
+  pushName?: string;
+  message?: {
+    conversation?: string;
+    extendedTextMessage?: { text?: string };
+    audioMessage?: { url?: string };
+    pttMessage?: { url?: string };
+  };
+}
+
+interface EvolutionListResponseMessage {
+  listResponseMessage?: {
+    title?: string;
+    description?: string;
+    singleSelectReply?: { selectedRowId?: string };
+  };
+}
+
+interface EvolutionButtonResponseMessage {
+  buttonsResponseMessage?: {
+    selectedButtonId?: string;
+    selectedDisplayText?: string;
+  };
+}
+
 export default router;
+

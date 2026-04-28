@@ -20,6 +20,13 @@ export const ClinicClinicType = {
   medical: "medical",
   vet: "vet",
   dental: "dental",
+  beauty: "beauty",
+  education: "education",
+  retail: "retail",
+  food: "food",
+  technology: "technology",
+  services: "services",
+  other: "other",
 } as const;
 
 export interface Clinic {
@@ -31,6 +38,17 @@ export interface Clinic {
   aiPersonalityPrompt: string;
   knowledgeBase: string;
   clinicType: ClinicClinicType;
+  /** Chave de API de IA externa (retornada mascarada: ****XXXX) */
+  aiExternalApiKey?: string | null;
+  /** Chave de integração Asaas (retornada mascarada: ****XXXX) */
+  asaasApiKey?: string | null;
+  /** ID do número WhatsApp Business API */
+  whatsappPhoneNumberId?: string | null;
+  /** Token de acesso WhatsApp Business API (retornado mascarado: ****XXXX) */
+  whatsappAccessToken?: string | null;
+  evolutionInstanceName?: string | null;
+  /** Se false, a IA não responde automaticamente pelo WhatsApp */
+  aiEnabled: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -42,6 +60,13 @@ export const CreateClinicBodyClinicType = {
   medical: "medical",
   vet: "vet",
   dental: "dental",
+  beauty: "beauty",
+  education: "education",
+  retail: "retail",
+  food: "food",
+  technology: "technology",
+  services: "services",
+  other: "other",
 } as const;
 
 export interface CreateClinicBody {
@@ -60,6 +85,13 @@ export const UpdateClinicBodyClinicType = {
   medical: "medical",
   vet: "vet",
   dental: "dental",
+  beauty: "beauty",
+  education: "education",
+  retail: "retail",
+  food: "food",
+  technology: "technology",
+  services: "services",
+  other: "other",
 } as const;
 
 export interface UpdateClinicBody {
@@ -68,27 +100,42 @@ export interface UpdateClinicBody {
   aiPersonalityPrompt?: string;
   knowledgeBase?: string;
   clinicType?: UpdateClinicBodyClinicType;
+  /** Chave de API de IA externa — enviar o valor completo para atualizar */
+  aiExternalApiKey?: string | null;
+  /** Chave de integração Asaas — enviar o valor completo para atualizar */
+  asaasApiKey?: string | null;
+  whatsappPhoneNumberId?: string | null;
+  /** Token de acesso WhatsApp Business API — enviar o valor completo para atualizar */
+  whatsappAccessToken?: string | null;
+  /** Liga/desliga o atendimento automático por IA */
+  aiEnabled?: boolean;
 }
 
 export interface Service {
   id: number;
   clinicId: number;
   name: string;
+  /** @nullable */
+  description?: string | null;
   price: number;
   durationMinutes: number;
+  active: boolean;
   createdAt: string;
 }
 
 export interface CreateServiceBody {
   name: string;
+  description?: string;
   price: number;
   durationMinutes: number;
 }
 
 export interface UpdateServiceBody {
   name?: string;
+  description?: string;
   price?: number;
   durationMinutes?: number;
+  active?: boolean;
 }
 
 export interface Professional {
@@ -135,6 +182,31 @@ export interface SetProfessionalServicesBody {
   serviceIds: number[];
 }
 
+export interface ProfessionalScheduleEntry {
+  id: number;
+  professionalId: number;
+  /** 0=Sunday, 1=Monday … 6=Saturday */
+  dayOfWeek: number;
+  /** Minutes since midnight (e.g. 480 = 08:00) */
+  startMinute: number;
+  /** Minutes since midnight (e.g. 1020 = 17:00) */
+  endMinute: number;
+  /** false = work window, true = blocked slot (e.g. lunch break) */
+  isBlock: boolean;
+  createdAt: string;
+}
+
+export type SetProfessionalScheduleBodyEntriesItem = {
+  dayOfWeek: number;
+  startMinute: number;
+  endMinute: number;
+  isBlock: boolean;
+};
+
+export interface SetProfessionalScheduleBody {
+  entries: SetProfessionalScheduleBodyEntriesItem[];
+}
+
 export interface Patient {
   id: number;
   clinicId: number;
@@ -157,6 +229,7 @@ export const AppointmentStatus = {
   pending: "pending",
   confirmed: "confirmed",
   canceled: "canceled",
+  scheduled: "scheduled",
 } as const;
 
 export interface Appointment {
@@ -238,12 +311,52 @@ export const UpdateAppointmentBodyStatus = {
   pending: "pending",
   confirmed: "confirmed",
   canceled: "canceled",
+  scheduled: "scheduled",
 } as const;
 
 export interface UpdateAppointmentBody {
   status?: UpdateAppointmentBodyStatus;
   notes?: string;
   professionalId?: number;
+  scheduledAt?: string;
+}
+
+export interface Handoff {
+  id: number;
+  clinicId: number;
+  patientPhone: string;
+  attendantId?: number | null;
+  startedAt: string;
+  endedAt?: string | null;
+}
+
+export interface CreateHandoffBody {
+  patientPhone: string;
+}
+
+/**
+ * ai = resposta da IA; attendant = resposta do atendente humano; patient = mensagem do paciente
+ */
+export type ConversationHistoryItemSource =
+  (typeof ConversationHistoryItemSource)[keyof typeof ConversationHistoryItemSource];
+
+export const ConversationHistoryItemSource = {
+  ai: "ai",
+  attendant: "attendant",
+  patient: "patient",
+} as const;
+
+export interface ConversationHistoryItem {
+  id: number;
+  /** ai = resposta da IA; attendant = resposta do atendente humano; patient = mensagem do paciente */
+  source: ConversationHistoryItemSource;
+  content: string;
+  patientPhone: string;
+  createdAt: string;
+}
+
+export interface SendHandoffMessageBody {
+  content: string;
 }
 
 export type WhatsappWebhookBodyMessageType =
@@ -287,6 +400,7 @@ export type ListAppointmentsParams = {
   status?: ListAppointmentsStatus;
   professionalId?: number;
   patientId?: number;
+  serviceId?: number;
 };
 
 export type ListAppointmentsStatus =
@@ -296,7 +410,12 @@ export const ListAppointmentsStatus = {
   pending: "pending",
   confirmed: "confirmed",
   canceled: "canceled",
+  scheduled: "scheduled",
 } as const;
+
+export type ListHandoffMessagesParams = {
+  limit?: number;
+};
 
 export type ListAiLogsParams = {
   limit?: number;

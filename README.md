@@ -105,7 +105,7 @@ The AI now presents qualified professionals to the patient when checking availab
 - Express 5: async handlers need `Promise<void>`, use `res.status().json(); return;` pattern for early exits
 - Frontend `CLINIC_ID = 1` is hardcoded (single-tenant demo)
 - All AI responses are in Brazilian Portuguese (pt-BR)
-- OpenAI via Replit AI Integrations — env vars set automatically, no API key required
+- OpenAI via env vars `AI_INTEGRATIONS_OPENAI_API_KEY` and `AI_INTEGRATIONS_OPENAI_BASE_URL`
 
 ## Scripts
 

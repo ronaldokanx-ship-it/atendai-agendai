@@ -13,4 +13,13 @@ export interface UpdateClinicBody {
   aiPersonalityPrompt?: string;
   knowledgeBase?: string;
   clinicType?: UpdateClinicBodyClinicType;
+  /** Chave de API de IA externa — enviar o valor completo para atualizar */
+  aiExternalApiKey?: string | null;
+  /** Chave de integração Asaas — enviar o valor completo para atualizar */
+  asaasApiKey?: string | null;
+  whatsappPhoneNumberId?: string | null;
+  /** Token de acesso WhatsApp Business API — enviar o valor completo para atualizar */
+  whatsappAccessToken?: string | null;
+  /** Liga/desliga o atendimento automático por IA */
+  aiEnabled?: boolean;
 }

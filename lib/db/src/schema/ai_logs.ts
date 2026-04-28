@@ -11,6 +11,10 @@ export const aiLogsTable = pgTable("ai_logs", {
   aiResponse: text("ai_response").notNull(),
   tokensUsed: integer("tokens_used").notNull().default(0),
   messageType: text("message_type").notNull().default("text"),
+  // Evolution API: ID da mensagem no WhatsApp para rastreio de entrega
+  whatsappMessageId: text("whatsapp_message_id"),
+  // Status de entrega: PENDING | SERVER_ACK | DELIVERY_ACK | READ | PLAYED | ERROR
+  deliveryStatus: text("delivery_status"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

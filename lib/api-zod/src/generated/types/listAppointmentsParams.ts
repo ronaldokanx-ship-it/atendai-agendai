@@ -11,4 +11,5 @@ export type ListAppointmentsParams = {
   status?: ListAppointmentsStatus;
   professionalId?: number;
   patientId?: number;
+  serviceId?: number;
 };

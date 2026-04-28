@@ -11,4 +11,5 @@ export interface UpdateAppointmentBody {
   status?: UpdateAppointmentBodyStatus;
   notes?: string;
   professionalId?: number;
+  scheduledAt?: Date;
 }

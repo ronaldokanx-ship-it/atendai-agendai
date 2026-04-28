@@ -1,17 +1,19 @@
 import * as React from "react"
+import { useAuth } from "@/contexts/auth"
 import { motion } from "framer-motion"
-import { Bot, Save, Sparkles } from "lucide-react"
+import { Bot, Save, Sparkles, Power, CalendarDays } from "lucide-react"
 import { useGetClinic, useUpdateClinic, getGetClinicQueryKey } from "@workspace/api-client-react"
 import { useQueryClient } from "@tanstack/react-query"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
+import { Switch } from "@/components/ui/switch"
 import { useToast } from "@/components/ui/use-toast"
 
-const CLINIC_ID = 1
-
 export default function AiSettings() {
+  const { user } = useAuth()
+  const CLINIC_ID = user!.clinicId!
   const queryClient = useQueryClient()
   const { toast } = useToast()
   const { data: clinic, isLoading } = useGetClinic(CLINIC_ID)
@@ -20,7 +22,9 @@ export default function AiSettings() {
   const [formData, setFormData] = React.useState({
     aiName: "",
     aiPersonalityPrompt: "",
-    knowledgeBase: ""
+    knowledgeBase: "",
+    aiEnabled: true,
+    schedulingEnabled: true,
   })
 
   React.useEffect(() => {
@@ -28,7 +32,9 @@ export default function AiSettings() {
       setFormData({
         aiName: clinic.aiName || "",
         aiPersonalityPrompt: clinic.aiPersonalityPrompt || "",
-        knowledgeBase: clinic.knowledgeBase || ""
+        knowledgeBase: clinic.knowledgeBase || "",
+        aiEnabled: clinic.aiEnabled ?? true,
+        schedulingEnabled: (clinic as Record<string, unknown>).schedulingEnabled !== false,
       })
     }
   }, [clinic])
@@ -45,15 +51,15 @@ export default function AiSettings() {
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: getGetClinicQueryKey(CLINIC_ID) })
           toast({
-            title: "Settings saved",
-            description: "Your AI assistant has been updated successfully.",
+            title: "Configurações salvas",
+            description: "Seu assistente de IA foi atualizado com sucesso.",
           })
         },
         onError: () => {
           toast({
             variant: "destructive",
-            title: "Error",
-            description: "Failed to save settings. Please try again.",
+            title: "Erro",
+            description: "Falha ao salvar as configurações. Tente novamente.",
           })
         }
       }
@@ -75,9 +81,9 @@ export default function AiSettings() {
     >
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-display font-bold text-foreground">AI Configuration</h1>
+          <h1 className="text-3xl font-display font-bold text-foreground">Configuração de IA</h1>
           <p className="text-muted-foreground mt-2">
-            Customize how your AI assistant talks to patients on WhatsApp.
+            Personalize como seu assistente de IA conversa com os pacientes pelo WhatsApp.
           </p>
         </div>
         <Button 
@@ -91,9 +97,54 @@ export default function AiSettings() {
           ) : (
             <Save className="w-5 h-5" />
           )}
-          Save Changes
+          Salvar Alterações
         </Button>
       </div>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${formData.aiEnabled ? "bg-emerald-500/10 text-emerald-500" : "bg-muted text-muted-foreground"}`}>
+              <Power className="w-6 h-6" />
+            </div>
+            <div className="flex-1">
+              <CardTitle>Atendimento Automático por IA</CardTitle>
+              <CardDescription>
+                {formData.aiEnabled
+                  ? "A IA está respondendo automaticamente às mensagens do WhatsApp."
+                  : "A IA está pausada. As mensagens serão salvas para atendimento manual."}
+              </CardDescription>
+            </div>
+            <Switch
+              checked={formData.aiEnabled}
+              onCheckedChange={(checked) => setFormData(prev => ({ ...prev, aiEnabled: checked }))}
+            />
+          </div>
+        </CardHeader>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${formData.schedulingEnabled ? "bg-blue-500/10 text-blue-500" : "bg-muted text-muted-foreground"}`}>
+              <CalendarDays className="w-6 h-6" />
+            </div>
+            <div className="flex-1">
+              <CardTitle>Agendamento pelo WhatsApp</CardTitle>
+              <CardDescription>
+                {formData.schedulingEnabled
+                  ? "A IA pode consultar disponibilidade e agendar horários."
+                  : "Agendamento desativado. A IA responde apenas perguntas gerais (FAQ)."
+                }
+              </CardDescription>
+            </div>
+            <Switch
+              checked={formData.schedulingEnabled}
+              onCheckedChange={(checked) => setFormData(prev => ({ ...prev, schedulingEnabled: checked }))}
+            />
+          </div>
+        </CardHeader>
+      </Card>
 
       <Card>
         <CardHeader>
@@ -102,35 +153,35 @@ export default function AiSettings() {
               <Bot className="w-6 h-6" />
             </div>
             <div>
-              <CardTitle>Assistant Identity</CardTitle>
-              <CardDescription>Give your AI a name and personality</CardDescription>
+              <CardTitle>Identidade do Assistente</CardTitle>
+              <CardDescription>Defina um nome e personalidade para sua IA</CardDescription>
             </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">Assistant Name</label>
+            <label className="text-sm font-medium text-foreground">Nome do Assistente</label>
             <Input 
               name="aiName"
               value={formData.aiName}
               onChange={handleChange}
-              placeholder="e.g. Dr. Sarah's Assistant" 
+              placeholder="Ex: Assistente da Clínica" 
             />
-            <p className="text-xs text-muted-foreground">This is how the AI introduces itself to patients.</p>
+            <p className="text-xs text-muted-foreground">É assim que a IA se apresenta aos pacientes.</p>
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">System Prompt / Personality</label>
+            <label className="text-sm font-medium text-foreground">Prompt de Sistema / Personalidade</label>
             <Textarea 
               name="aiPersonalityPrompt"
               value={formData.aiPersonalityPrompt}
               onChange={handleChange}
-              placeholder="You are a helpful and empathetic receptionist for a dental clinic..."
+              placeholder="Você é uma recepcionista simpática e prestativa de uma clínica odontológica..."
               className="min-h-[160px]"
             />
             <p className="text-xs text-muted-foreground">
-              Define the tone, restrictions, and general behavior of the AI. 
-              (e.g., "Be very polite, use emojis sparingly, never offer medical diagnoses.")
+              Defina o tom, as restrições e o comportamento geral da IA.
+              (ex: "Seja muito educada, use emojis com parcimônia, nunca ofereça diagnósticos médicos.")
             </p>
           </div>
         </CardContent>
@@ -138,8 +189,8 @@ export default function AiSettings() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Knowledge Base</CardTitle>
-          <CardDescription>Information the AI uses to answer FAQs</CardDescription>
+          <CardTitle>Base de Conhecimento</CardTitle>
+          <CardDescription>Informações que a IA usa para responder perguntas frequentes</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
@@ -147,11 +198,11 @@ export default function AiSettings() {
               name="knowledgeBase"
               value={formData.knowledgeBase}
               onChange={handleChange}
-              placeholder="Clinic hours: Mon-Fri 9am to 6pm. Address: 123 Main St. Parking available in the back..."
+              placeholder="Horário de funcionamento: Seg-Sex 9h às 18h. Endereço: Rua Principal, 123. Estacionamento no fundo..."
               className="min-h-[240px] font-mono text-sm"
             />
             <p className="text-xs text-muted-foreground">
-              Provide all details about hours, location, accepted insurances, cancellation policies, and common questions.
+              Forneça todos os detalhes sobre horários, localização, convênios aceitos, políticas de cancelamento e dúvidas comuns.
             </p>
           </div>
         </CardContent>

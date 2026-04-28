@@ -11,6 +11,29 @@ out-tsc
 # dependencies
 node_modules
 
+# environment variables
+.env
+.env.local
+.env.prod
+
+# production deployment sensitive files
+backups/
+clinicai-oracle.key
+*.key
+deploy/scripts/*.log
+deploy/scripts/oracle-instance.txt
+
+# logs
+*.log
+
+# database backups (may contain sensitive data)
+clinic_sas_backup.sql
+*.backup.sql
+
+# temp / runtime files
+qr-result.json
+oracle-retry.log
+
 # IDEs and editors
 /.idea
 .project
@@ -26,6 +49,10 @@ node_modules
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
+
+# Copilot/Replit internal skills and workspace files
+.local/
+.cursor/
 
 # misc
 /.sass-cache
@@ -43,7 +70,3 @@ Thumbs.db
 
 .cursor/rules/nx-rules.mdc
 .github/instructions/nx.instructions.md
-
-# Replit
-.cache/
-.local/

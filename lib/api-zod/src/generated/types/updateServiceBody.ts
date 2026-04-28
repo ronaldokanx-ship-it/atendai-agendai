@@ -8,6 +8,8 @@
 
 export interface UpdateServiceBody {
   name?: string;
+  description?: string;
   price?: number;
   durationMinutes?: number;
+  active?: boolean;
 }

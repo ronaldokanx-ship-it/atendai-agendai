@@ -25,7 +25,40 @@ export const ListClinicsResponseItem = zod.object({
   aiName: zod.string(),
   aiPersonalityPrompt: zod.string(),
   knowledgeBase: zod.string(),
-  clinicType: zod.enum(["medical", "vet", "dental"]),
+  clinicType: zod.enum([
+    "medical",
+    "vet",
+    "dental",
+    "beauty",
+    "education",
+    "retail",
+    "food",
+    "technology",
+    "services",
+    "other",
+  ]),
+  aiExternalApiKey: zod
+    .string()
+    .nullish()
+    .describe("Chave de API de IA externa (retornada mascarada: \*\*\*\*XXXX)"),
+  asaasApiKey: zod
+    .string()
+    .nullish()
+    .describe("Chave de integração Asaas (retornada mascarada: \*\*\*\*XXXX)"),
+  whatsappPhoneNumberId: zod
+    .string()
+    .nullish()
+    .describe("ID do número WhatsApp Business API"),
+  whatsappAccessToken: zod
+    .string()
+    .nullish()
+    .describe(
+      "Token de acesso WhatsApp Business API (retornado mascarado: \*\*\*\*XXXX)",
+    ),
+  evolutionInstanceName: zod.string().nullish(),
+  aiEnabled: zod
+    .boolean()
+    .describe("Se false, a IA não responde automaticamente pelo WhatsApp"),
   createdAt: zod.date(),
   updatedAt: zod.date(),
 });
@@ -37,7 +70,18 @@ export const ListClinicsResponse = zod.array(ListClinicsResponseItem);
 export const CreateClinicBody = zod.object({
   name: zod.string(),
   phone: zod.string(),
-  clinicType: zod.enum(["medical", "vet", "dental"]),
+  clinicType: zod.enum([
+    "medical",
+    "vet",
+    "dental",
+    "beauty",
+    "education",
+    "retail",
+    "food",
+    "technology",
+    "services",
+    "other",
+  ]),
   aiName: zod.string(),
   aiPersonalityPrompt: zod.string(),
   knowledgeBase: zod.string(),
@@ -58,7 +102,40 @@ export const GetClinicResponse = zod.object({
   aiName: zod.string(),
   aiPersonalityPrompt: zod.string(),
   knowledgeBase: zod.string(),
-  clinicType: zod.enum(["medical", "vet", "dental"]),
+  clinicType: zod.enum([
+    "medical",
+    "vet",
+    "dental",
+    "beauty",
+    "education",
+    "retail",
+    "food",
+    "technology",
+    "services",
+    "other",
+  ]),
+  aiExternalApiKey: zod
+    .string()
+    .nullish()
+    .describe("Chave de API de IA externa (retornada mascarada: \*\*\*\*XXXX)"),
+  asaasApiKey: zod
+    .string()
+    .nullish()
+    .describe("Chave de integração Asaas (retornada mascarada: \*\*\*\*XXXX)"),
+  whatsappPhoneNumberId: zod
+    .string()
+    .nullish()
+    .describe("ID do número WhatsApp Business API"),
+  whatsappAccessToken: zod
+    .string()
+    .nullish()
+    .describe(
+      "Token de acesso WhatsApp Business API (retornado mascarado: \*\*\*\*XXXX)",
+    ),
+  evolutionInstanceName: zod.string().nullish(),
+  aiEnabled: zod
+    .boolean()
+    .describe("Se false, a IA não responde automaticamente pelo WhatsApp"),
   createdAt: zod.date(),
   updatedAt: zod.date(),
 });
@@ -75,7 +152,43 @@ export const UpdateClinicBody = zod.object({
   aiName: zod.string().optional(),
   aiPersonalityPrompt: zod.string().optional(),
   knowledgeBase: zod.string().optional(),
-  clinicType: zod.enum(["medical", "vet", "dental"]).optional(),
+  clinicType: zod
+    .enum([
+      "medical",
+      "vet",
+      "dental",
+      "beauty",
+      "education",
+      "retail",
+      "food",
+      "technology",
+      "services",
+      "other",
+    ])
+    .optional(),
+  aiExternalApiKey: zod
+    .string()
+    .nullish()
+    .describe(
+      "Chave de API de IA externa — enviar o valor completo para atualizar",
+    ),
+  asaasApiKey: zod
+    .string()
+    .nullish()
+    .describe(
+      "Chave de integração Asaas — enviar o valor completo para atualizar",
+    ),
+  whatsappPhoneNumberId: zod.string().nullish(),
+  whatsappAccessToken: zod
+    .string()
+    .nullish()
+    .describe(
+      "Token de acesso WhatsApp Business API — enviar o valor completo para atualizar",
+    ),
+  aiEnabled: zod
+    .boolean()
+    .optional()
+    .describe("Liga\/desliga o atendimento automático por IA"),
 });
 
 export const UpdateClinicResponse = zod.object({
@@ -86,7 +199,40 @@ export const UpdateClinicResponse = zod.object({
   aiName: zod.string(),
   aiPersonalityPrompt: zod.string(),
   knowledgeBase: zod.string(),
-  clinicType: zod.enum(["medical", "vet", "dental"]),
+  clinicType: zod.enum([
+    "medical",
+    "vet",
+    "dental",
+    "beauty",
+    "education",
+    "retail",
+    "food",
+    "technology",
+    "services",
+    "other",
+  ]),
+  aiExternalApiKey: zod
+    .string()
+    .nullish()
+    .describe("Chave de API de IA externa (retornada mascarada: \*\*\*\*XXXX)"),
+  asaasApiKey: zod
+    .string()
+    .nullish()
+    .describe("Chave de integração Asaas (retornada mascarada: \*\*\*\*XXXX)"),
+  whatsappPhoneNumberId: zod
+    .string()
+    .nullish()
+    .describe("ID do número WhatsApp Business API"),
+  whatsappAccessToken: zod
+    .string()
+    .nullish()
+    .describe(
+      "Token de acesso WhatsApp Business API (retornado mascarado: \*\*\*\*XXXX)",
+    ),
+  evolutionInstanceName: zod.string().nullish(),
+  aiEnabled: zod
+    .boolean()
+    .describe("Se false, a IA não responde automaticamente pelo WhatsApp"),
   createdAt: zod.date(),
   updatedAt: zod.date(),
 });
@@ -102,8 +248,10 @@ export const ListServicesResponseItem = zod.object({
   id: zod.number(),
   clinicId: zod.number(),
   name: zod.string(),
+  description: zod.string().nullish(),
   price: zod.number(),
   durationMinutes: zod.number(),
+  active: zod.boolean(),
   createdAt: zod.date(),
 });
 export const ListServicesResponse = zod.array(ListServicesResponseItem);
@@ -117,6 +265,7 @@ export const CreateServiceParams = zod.object({
 
 export const CreateServiceBody = zod.object({
   name: zod.string(),
+  description: zod.string().optional(),
   price: zod.number(),
   durationMinutes: zod.number(),
 });
@@ -131,16 +280,20 @@ export const UpdateServiceParams = zod.object({
 
 export const UpdateServiceBody = zod.object({
   name: zod.string().optional(),
+  description: zod.string().optional(),
   price: zod.number().optional(),
   durationMinutes: zod.number().optional(),
+  active: zod.boolean().optional(),
 });
 
 export const UpdateServiceResponse = zod.object({
   id: zod.number(),
   clinicId: zod.number(),
   name: zod.string(),
+  description: zod.string().nullish(),
   price: zod.number(),
   durationMinutes: zod.number(),
+  active: zod.boolean(),
   createdAt: zod.date(),
 });
 
@@ -274,6 +427,71 @@ export const SetProfessionalServicesResponse = zod.object({
 });
 
 /**
+ * @summary Get the weekly schedule of a professional
+ */
+export const GetProfessionalScheduleParams = zod.object({
+  clinicId: zod.coerce.number(),
+  id: zod.coerce.number(),
+});
+
+export const GetProfessionalScheduleResponseItem = zod.object({
+  id: zod.number(),
+  professionalId: zod.number(),
+  dayOfWeek: zod.number().describe("0=Sunday, 1=Monday … 6=Saturday"),
+  startMinute: zod
+    .number()
+    .describe("Minutes since midnight (e.g. 480 = 08:00)"),
+  endMinute: zod
+    .number()
+    .describe("Minutes since midnight (e.g. 1020 = 17:00)"),
+  isBlock: zod
+    .boolean()
+    .describe("false = work window, true = blocked slot (e.g. lunch break)"),
+  createdAt: zod.date(),
+});
+export const GetProfessionalScheduleResponse = zod.array(
+  GetProfessionalScheduleResponseItem,
+);
+
+/**
+ * @summary Replace the full weekly schedule of a professional
+ */
+export const SetProfessionalScheduleParams = zod.object({
+  clinicId: zod.coerce.number(),
+  id: zod.coerce.number(),
+});
+
+export const SetProfessionalScheduleBody = zod.object({
+  entries: zod.array(
+    zod.object({
+      dayOfWeek: zod.number(),
+      startMinute: zod.number(),
+      endMinute: zod.number(),
+      isBlock: zod.boolean(),
+    }),
+  ),
+});
+
+export const SetProfessionalScheduleResponseItem = zod.object({
+  id: zod.number(),
+  professionalId: zod.number(),
+  dayOfWeek: zod.number().describe("0=Sunday, 1=Monday … 6=Saturday"),
+  startMinute: zod
+    .number()
+    .describe("Minutes since midnight (e.g. 480 = 08:00)"),
+  endMinute: zod
+    .number()
+    .describe("Minutes since midnight (e.g. 1020 = 17:00)"),
+  isBlock: zod
+    .boolean()
+    .describe("false = work window, true = blocked slot (e.g. lunch break)"),
+  createdAt: zod.date(),
+});
+export const SetProfessionalScheduleResponse = zod.array(
+  SetProfessionalScheduleResponseItem,
+);
+
+/**
  * @summary List patients for a clinic
  */
 export const ListPatientsParams = zod.object({
@@ -340,7 +558,7 @@ export const GetPatientResponse = zod.object({
       patientName: zod.string(),
       patientPhone: zod.string(),
       scheduledAt: zod.date(),
-      status: zod.enum(["pending", "confirmed", "canceled"]),
+      status: zod.enum(["pending", "confirmed", "canceled", "scheduled"]),
       paymentIntentId: zod.string().nullish(),
       notes: zod.string().nullish(),
       createdAt: zod.date(),
@@ -404,9 +622,12 @@ export const ListAppointmentsParams = zod.object({
 });
 
 export const ListAppointmentsQueryParams = zod.object({
-  status: zod.enum(["pending", "confirmed", "canceled"]).optional(),
+  status: zod
+    .enum(["pending", "confirmed", "canceled", "scheduled"])
+    .optional(),
   professionalId: zod.coerce.number().optional(),
   patientId: zod.coerce.number().optional(),
+  serviceId: zod.coerce.number().optional(),
 });
 
 export const ListAppointmentsResponseItem = zod.object({
@@ -418,7 +639,7 @@ export const ListAppointmentsResponseItem = zod.object({
   patientName: zod.string(),
   patientPhone: zod.string(),
   scheduledAt: zod.date(),
-  status: zod.enum(["pending", "confirmed", "canceled"]),
+  status: zod.enum(["pending", "confirmed", "canceled", "scheduled"]),
   paymentIntentId: zod.string().nullish(),
   notes: zod.string().nullish(),
   createdAt: zod.date(),
@@ -434,9 +655,12 @@ export const UpdateAppointmentParams = zod.object({
 });
 
 export const UpdateAppointmentBody = zod.object({
-  status: zod.enum(["pending", "confirmed", "canceled"]).optional(),
+  status: zod
+    .enum(["pending", "confirmed", "canceled", "scheduled"])
+    .optional(),
   notes: zod.string().optional(),
   professionalId: zod.number().optional(),
+  scheduledAt: zod.date().optional(),
 });
 
 export const UpdateAppointmentResponse = zod.object({
@@ -448,10 +672,85 @@ export const UpdateAppointmentResponse = zod.object({
   patientName: zod.string(),
   patientPhone: zod.string(),
   scheduledAt: zod.date(),
-  status: zod.enum(["pending", "confirmed", "canceled"]),
+  status: zod.enum(["pending", "confirmed", "canceled", "scheduled"]),
   paymentIntentId: zod.string().nullish(),
   notes: zod.string().nullish(),
   createdAt: zod.date(),
+});
+
+/**
+ * @summary Lista handoffs ativos para a clínica
+ */
+export const ListHandoffsParams = zod.object({
+  clinicId: zod.coerce.number(),
+});
+
+export const ListHandoffsResponseItem = zod.object({
+  id: zod.number(),
+  clinicId: zod.number(),
+  patientPhone: zod.string(),
+  attendantId: zod.number().nullish(),
+  startedAt: zod.date(),
+  endedAt: zod.date().nullish(),
+});
+export const ListHandoffsResponse = zod.array(ListHandoffsResponseItem);
+
+/**
+ * @summary Atendente assume uma conversa (pausa a IA)
+ */
+export const CreateHandoffParams = zod.object({
+  clinicId: zod.coerce.number(),
+});
+
+export const CreateHandoffBody = zod.object({
+  patientPhone: zod.string(),
+});
+
+/**
+ * @summary Encerra um handoff ativo
+ */
+export const DeleteHandoffParams = zod.object({
+  clinicId: zod.coerce.number(),
+  phone: zod.coerce.string(),
+});
+
+/**
+ * @summary Histórico mesclado de mensagens (IA + atendente) para um paciente
+ */
+export const ListHandoffMessagesParams = zod.object({
+  clinicId: zod.coerce.number(),
+  phone: zod.coerce.string(),
+});
+
+export const ListHandoffMessagesQueryParams = zod.object({
+  limit: zod.coerce.number().optional(),
+});
+
+export const ListHandoffMessagesResponseItem = zod.object({
+  id: zod.number(),
+  source: zod
+    .enum(["ai", "attendant", "patient"])
+    .describe(
+      "ai = resposta da IA; attendant = resposta do atendente humano; patient = mensagem do paciente",
+    ),
+  content: zod.string(),
+  patientPhone: zod.string(),
+  createdAt: zod.date(),
+});
+export const ListHandoffMessagesResponse = zod.array(
+  ListHandoffMessagesResponseItem,
+);
+
+/**
+ * @summary Atendente envia mensagem pelo WhatsApp
+ */
+export const SendHandoffMessageParams = zod.object({
+  clinicId: zod.coerce.number(),
+  phone: zod.coerce.string(),
+});
+
+export const SendHandoffMessageBody = zod.object({
+  content: zod.string(),
 });
 
 /**

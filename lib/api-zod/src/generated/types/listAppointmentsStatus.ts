@@ -13,4 +13,5 @@ export const ListAppointmentsStatus = {
   pending: "pending",
   confirmed: "confirmed",
   canceled: "canceled",
+  scheduled: "scheduled",
 } as const;
