@@ -3,6 +3,10 @@
     {
       "source": "/api/:path*",
       "destination": "https://api.kanxitsolutions.com.br/api/:path*"
+    },
+    {
+      "source": "/((?!api/).*)",
+      "destination": "/index.html"
     }
   ],
   "headers": [
