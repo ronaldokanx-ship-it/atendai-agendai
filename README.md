@@ -1,115 +1,130 @@
-# ClinicAI — SaaS Multi-tenant Clinic Management
+# AtendAI — SaaS Multi-tenant de Gestão de Clínicas
 
-## Overview
+MVP SaaS com atendimento via WhatsApp por IA. Cada clínica gerencia seu próprio fluxo de IA, serviços, profissionais e pacientes.
 
-An MVP SaaS platform for clinic management (Medical, Vet, Dental) with automated WhatsApp AI attendance. Each clinic can manage its own AI flow, personality, services, professionals, and patient records.
+---
+
+## Ambientes em Produção
+
+| Sistema | Plataforma | URL | Instância |
+|---|---|---|---|
+| **Frontend** | Vercel | https://atendai-kanx.vercel.app | `atendai_agendai` (kanxs-projects) |
+| **Backend API** | Oracle Cloud VM1 (x86) | https://api.kanxitsolutions.com.br | `clinicai-api` (147.15.86.5) |
+| **Evolution API** | Oracle Cloud VM2 (x86) | https://wa.kanxitsolutions.com.br | `clinicai-evolution` (163.176.167.226) |
+| **Banco de Dados** | Neon PostgreSQL | `ep-nameless-bread-acjpjdap.sa-east-1.aws.neon.tech` | `neondb` |
+
+### Credenciais de Acesso (Demo)
+
+| Papel | Email | Senha |
+|---|---|---|
+| Superadmin | `admin@kanxitsolutions.com.br` | `KlinicAdmin@2026!` |
+| Owner (Clínica 1) | `owner@clinicai.com.br` | `ClinicOwner@2026!` |
+
+---
 
 ## Stack
 
-- **Monorepo tool**: pnpm workspaces
-- **Node.js version**: 24
-- **Package manager**: pnpm
-- **TypeScript version**: 5.9
-- **API framework**: Express 5
-- **Database**: PostgreSQL + Drizzle ORM
-- **Validation**: Zod (`zod/v4`), `drizzle-zod`
-- **API codegen**: Orval (from OpenAPI spec)
-- **Build**: esbuild
-- **AI**: OpenAI (GPT-5.2 for chat/function calling, gpt-4o-mini-transcribe for Whisper audio)
-- **Frontend**: React + Vite (Tailwind v4, shadcn/ui, date-fns)
+- **Monorepo**: pnpm workspaces · **Node.js**: v22 · **TypeScript**: 5.9
+- **Backend**: Express 5 + Drizzle ORM + PostgreSQL 16 (Neon)
+- **Validação**: Zod (`zod/v4`) + `drizzle-zod`
+- **Build backend**: esbuild
+- **Frontend**: React 19 + Vite 7 + Tailwind v4 + shadcn/ui + Wouter + TanStack Query
+- **IA primária**: OpenRouter (rotação de modelos gratuitos)
+- **IA fallback**: Groq (`llama-3.3-70b-versatile` → `llama-3.1-8b-instant`)
+- **WhatsApp**: Evolution API v2.2.3 (Baileys)
 
-## Architecture
+---
 
-```text
-artifacts-monorepo/
+## Estrutura do Monorepo
+
+```
+Sistema-Sas/
 ├── artifacts/
-│   ├── api-server/         # Express API server
+│   ├── api-server/              # Backend Express — hospedado na VM1 (Oracle)
 │   │   └── src/
 │   │       ├── lib/
-│   │       │   └── ai-orchestrator.ts  # OpenAI Function Calling engine
+│   │       │   ├── ai-orchestrator.ts   # Orquestrador de IA (OpenRouter + Groq)
+│   │       │   ├── scheduling-flow.ts   # Fluxo determinístico de agendamento
+│   │       │   └── evolution-api.ts     # Integração WhatsApp (Evolution API)
 │   │       └── routes/
 │   │           ├── clinics.ts
 │   │           ├── services.ts
-│   │           ├── professionals.ts    # Professionals + specialty filtering
-│   │           ├── patients.ts         # Patient CRUD + history
+│   │           ├── professionals.ts
+│   │           ├── patients.ts
 │   │           ├── appointments.ts
+│   │           ├── handoffs.ts          # Handoff IA → atendente humano
+│   │           ├── users.ts             # Gestão de equipe
 │   │           ├── ai-logs.ts
-│   │           └── whatsapp.ts         # WhatsApp webhook handler
-│   └── clinic-dashboard/   # React frontend (clinic owner portal)
+│   │           └── whatsapp.ts          # Webhook Evolution API
+│   └── clinic-dashboard/        # Frontend React — hospedado na Vercel
 │       └── src/
 │           └── pages/
-│               ├── Dashboard.tsx       # Stats overview
-│               ├── AiSettings.tsx      # Configure AI name, personality, knowledge base
-│               ├── Services.tsx        # Manage clinic services
-│               ├── Professionals.tsx   # Manage professionals & specialties
-│               ├── Patients.tsx        # Patient CRUD, history & notes
-│               ├── Appointments.tsx    # View/update appointments
-│               └── AiLogs.tsx          # AI interaction history
+│               ├── Dashboard.tsx
+│               ├── AiSettings.tsx
+│               ├── AiChat.tsx           # Chat com handoff em tempo real
+│               ├── Services.tsx
+│               ├── Professionals.tsx
+│               ├── Patients.tsx
+│               ├── Appointments.tsx
+│               ├── AiLogs.tsx
+│               ├── Team.tsx             # Gestão de membros da equipe
+│               ├── ClinicSettings.tsx
+│               └── AdminClinics.tsx     # Painel superadmin
 ├── lib/
-│   ├── api-spec/           # OpenAPI spec (source of truth)
-│   ├── api-client-react/   # Generated React Query hooks
-│   ├── api-zod/            # Generated Zod schemas
+│   ├── api-spec/                # OpenAPI spec (fonte de verdade)
+│   ├── api-client-react/        # Hooks React Query gerados pelo Orval
+│   ├── api-zod/                 # Schemas Zod gerados
 │   └── db/
-│       └── src/schema/
-│           ├── clinics.ts
-│           ├── services.ts
-│           ├── professionals.ts    # professionals + professional_services tables
-│           ├── patients.ts         # patients table
-│           ├── appointments.ts     # now includes professional_id & patient_id
-│           └── ai_logs.ts
+│       └── src/schema/          # Tabelas Drizzle ORM
+├── deploy/                      # Scripts e configs de infraestrutura
+│   ├── vm1-clinicai-api/        # Tudo relacionado à VM1 (Backend)
+│   ├── vm2-clinicai-evolution/  # Tudo relacionado à VM2 (Evolution)
+│   └── vercel-clinic-dashboard/ # Configurações Vercel (Frontend)
+└── .github/
+    └── copilot-instructions.md  # Contexto do projeto para o Copilot
 ```
 
-## Database Schema
+---
 
-- **clinics**: `id`, `name`, `phone`, `api_key`, `ai_name`, `ai_personality_prompt`, `knowledge_base`, `clinic_type`
-- **services**: `id`, `clinic_id`, `name`, `price`, `duration_minutes`
-- **professionals**: `id`, `clinic_id`, `name`, `specialty`, `bio`, `active`
-- **professional_services**: `id`, `professional_id`, `service_id` (many-to-many junction)
-- **patients**: `id`, `clinic_id`, `name`, `phone`, `email`, `date_of_birth`, `notes`
-- **appointments**: `id`, `clinic_id`, `service_id`, `professional_id`, `patient_id`, `patient_name`, `patient_phone`, `scheduled_at`, `status` (pending/confirmed/canceled), `notes`
-- **ai_logs**: `id`, `clinic_id`, `patient_phone`, `user_message`, `ai_response`, `tokens_used`, `message_type`
+## Comandos Essenciais (Desenvolvimento Local)
 
-## WhatsApp Webhook
+```powershell
+# Iniciar servidor API (porta 3000)
+node --env-file="c:\Desenvolvimento\Sistema-Sas\.env" --enable-source-maps "c:\Desenvolvimento\Sistema-Sas\artifacts\api-server\dist\index.mjs"
 
-`POST /api/whatsapp/webhook` — accepts JSON payload:
-```json
-{
-  "apiKey": "demo-api-key-clinic-001",
-  "from": "+5511999001234",
-  "message": "Quero agendar uma consulta",
-  "messageType": "text"
-}
+# Build do servidor (obrigatório após qualquer mudança em src/)
+cd artifacts/api-server && pnpm run build
+
+# Iniciar frontend (porta 5175)
+cd artifacts/clinic-dashboard && pnpm run dev -- --port 5175
+
+# Push de schema para o banco
+pnpm --filter @workspace/db run push
+
+# Regenerar client/types da API
+pnpm --filter @workspace/api-spec run codegen
 ```
 
-For audio: include `audioUrl` (downloadable .ogg) and set `messageType: "audio"` — it auto-transcribes with Whisper.
+## Deploy em Produção
 
-## AI Function Calling Tools
+Para atualizar o código em produção após cada commit:
 
-- `check_availability(date, serviceId?)` — Returns available hourly slots AND professionals qualified for the service
-- `book_appointment(patientName, patientPhone, scheduledAt, serviceId?, professionalId?, notes?)` — Creates appointment with optional professional
-- `faq_lookup(query)` — Searches clinic knowledge base
+```powershell
+# 1. Push para ambos os repos GitHub (o Vercel monitora atendai_agendai com underscore)
+git push origin main
+git push vercel-origin main   # aciona rebuild automático no Vercel
 
-The AI now presents qualified professionals to the patient when checking availability and includes the chosen professional in the booking.
+# 2. Atualizar VMs Oracle
+ssh -i "$env:USERPROFILE\.ssh\clinicai_oracle" ubuntu@147.15.86.5 `
+  "cd /opt/clinicai && sudo git pull && sudo docker compose -f docker-compose.vm1.yml up -d --build api"
 
-## Demo Clinic
+ssh -i "$env:USERPROFILE\.ssh\clinicai_oracle" ubuntu@163.176.167.226 `
+  "cd /opt/clinicai && sudo git pull && sudo docker compose -f docker-compose.vm2.yml up -d"
+```
 
-- **Clinic ID**: 1
-- **API Key**: `demo-api-key-clinic-001`
-- **Name**: Clínica Saúde Total
-- **AI Assistant**: Sofia
+## Clínica Demo
 
-## Key Implementation Notes
-
-- `numeric` columns from PostgreSQL come back as strings — always wrap with `Number()` before returning
-- Use `req.log` inside route handlers (pino-http), `logger` singleton only for startup/background code
-- Express 5: async handlers need `Promise<void>`, use `res.status().json(); return;` pattern for early exits
-- Frontend `CLINIC_ID = 1` is hardcoded (single-tenant demo)
-- All AI responses are in Brazilian Portuguese (pt-BR)
-- OpenAI via env vars `AI_INTEGRATIONS_OPENAI_API_KEY` and `AI_INTEGRATIONS_OPENAI_BASE_URL`
-
-## Scripts
-
-- `pnpm --filter @workspace/api-server run dev` — Start API server
-- `pnpm --filter @workspace/clinic-dashboard run dev` — Start frontend
-- `pnpm --filter @workspace/api-spec run codegen` — Regenerate API client/types
-- `pnpm --filter @workspace/db run push` — Push DB schema changes
+- **ID**: 1 · **Nome**: ClinicAI Demo
+- **API Key**: `8a0b608c-9aaa-4c79-bf42-336fa5823ac6`
+- **WhatsApp**: instância `clinica-1` (`state: open`)
+- **Profissional**: Dr. João Silva (ID=2) — serviços 1, 2, 3 · seg-sex 08:00-18:00

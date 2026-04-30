@@ -4,6 +4,17 @@
 
 MVP SaaS multi-tenant para gestão de clínicas (médica, vet, odonto, estética etc.) com atendimento via WhatsApp por IA. O frontend é um portal do dono da clínica; o backend expõe a API REST e o webhook do WhatsApp.
 
+## Ambientes de Produção
+
+| Sistema | URL | Instancia Docker | Infra |
+|---|---|---|---|
+| **Frontend** | https://atendai-kanx.vercel.app | — | Vercel (`atendai_agendai`, kanxs-projects) |
+| **Backend API** | https://api.kanxitsolutions.com.br | `clinicai-api` | Oracle VM1 `147.15.86.5` |
+| **Evolution API** | https://wa.kanxitsolutions.com.br | `clinicai-evolution` | Oracle VM2 `163.176.167.226` |
+| **Banco de Dados** | `ep-nameless-bread-acjpjdap.sa-east-1.aws.neon.tech` | — | Neon PostgreSQL |
+
+> **Dois repos GitHub:** `origin` → `atendai-agendai` (hyphen, desenvolvimento); `vercel-origin` → `atendai_agendai` (underscore, monitorado pelo Vercel). Sempre: `git push origin main ; git push vercel-origin main`
+
 ## Stack Atual
 
 - **Monorepo**: pnpm workspaces (`pnpm-workspace.yaml`)
@@ -27,6 +38,9 @@ cd artifacts/api-server && pnpm run build
 # Iniciar frontend (porta 5175 — obrigatório especificar --port, sem ele sobe na 3000 e conflita)
 cd artifacts/clinic-dashboard && pnpm run dev -- --port 5175
 
+# Push para produção (dois repos: desenvolvimento + Vercel)
+git push origin main ; git push vercel-origin main
+
 # Push de schema para o banco
 pnpm --filter @workspace/db run push
 
@@ -45,8 +59,10 @@ Get-NetTCPConnection -LocalPort 3000 -State Listen | Select-Object -ExpandProper
 > **IMPORTANTE**: PostgreSQL roda como serviço Windows nativo (`postgresql-x64-16`), **NÃO via Docker**. Host: `localhost:5433`. Se o banco não responder: `Get-Service postgresql-x64-16`. Para iniciar (requer admin): `Start-Service postgresql-x64-16`.
 
 - **Host**: `localhost:5433` · **User/Pass**: `postgres` · **DB**: `clinic_sas`
-- **Clínica demo**: ID=1, `apiKey="demo-api-key-clinic-001"`, `evolutionInstanceName="clinica-1"`
-- **Clínica de teste**: ID=3, `evolutionInstanceName="clinica1"`
+- **Clínica demo**: ID=1, `apiKey="8a0b608c-9aaa-4c79-bf42-336fa5823ac6"`, `evolutionInstanceName="clinica-1"`
+- Profissional ID=2 "Dr. João Silva", serviços [1,2,3], seg-sex 08:00-18:00
+- Superadmin: `admin@kanxitsolutions.com.br` / `KlinicAdmin@2026!`
+- Owner: `owner@clinicai.com.br` / `ClinicOwner@2026!`
 
 Tabelas relevantes: `clinics`, `services`, `professionals`, `professional_services`, `professional_schedules`, `patients`, `appointments`, `ai_logs`, `users`, `user_activity_logs`, `handoffs`, `handoff_messages`.  
 Schema completo em [`lib/db/src/schema/`](../lib/db/src/schema/).

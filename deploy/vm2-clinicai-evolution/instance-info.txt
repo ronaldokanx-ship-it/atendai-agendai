@@ -1,0 +1,6 @@
+﻿INSTANCE_OCID=ocid1.instance.oc1.sa-saopaulo-1.antxeljrdoo25mqcnne4ldxtewtbdw22kjjiuzyua4gkkm3qhqtcwgg6d5va
+AVAILABILITY_DOMAIN=RmWZ:SA-SAOPAULO-1-AD-1
+REGION=sa-saopaulo-1
+CREATED_AT=2026-04-30 12:12:47
+ATTEMPTS=1
+INSTANCE_NAME=clinicai-evolution

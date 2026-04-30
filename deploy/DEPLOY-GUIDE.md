@@ -1,4 +1,13 @@
-# ClinicAI SaaS — Guia de Deploy em Produção (Grátis para Sempre)
+# AtendAI SaaS — Guia de Deploy em Produção (Infraestrutura Gratuita)
+
+## Instâncias de Produção
+
+| Instância | Plataforma | URL | Status |
+|---|---|---|---|
+| `clinic-dashboard` | Vercel | https://atendai-kanx.vercel.app | ✅ Online |
+| `clinicai-api` (VM1) | Oracle Cloud x86 | https://api.kanxitsolutions.com.br | ✅ Online |
+| `clinicai-evolution` (VM2) | Oracle Cloud x86 | https://wa.kanxitsolutions.com.br | ✅ Online |
+| `neondb` | Neon PostgreSQL | `ep-nameless-bread-acjpjdap.sa-east-1.aws.neon.tech` | ✅ Online |
 
 ## Arquitetura
 
@@ -11,22 +20,48 @@
               ▼                  ▼                  ▼
      ┌────────────────┐ ┌──────────────────┐ ┌──────────────┐
      │   Vercel       │ │  Oracle VM1 (x86)│ │  Oracle VM2  │
-     │ React Frontend │ │  Backend API     │ │ Evolution API│
-     │   GRATUITO ∞   │ │  GRATUITO ∞      │ │  GRATUITO ∞  │
+     │ atendai-kanx   │ │  clinicai-api    │ │  clinicai-   │
+     │ .vercel.app    │ │  147.15.86.5     │ │  evolution   │
+     │   GRATUITO ∞   │ │  GRATUITO ∞      │ │163.176.167.226│
      └────────────────┘ └────────┬─────────┘ └──────────────┘
                                  │
                          ┌───────▼────────┐
                          │  Neon Postgres │
+                         │  sa-east-1     │
                          │  GRATUITO ∞    │
                          └────────────────┘
 ```
 
 | Plataforma | Serviço | Limites Gratuitos |
 |---|---|---|
-| **Vercel** | Frontend React | Sem limite de projetos, 100 GB banda/mês |
-| **Oracle Cloud** | VM1 - API | 1 OCPU, 1 GB RAM, 50 GB disco - sempre grátis |
-| **Oracle Cloud** | VM2 - Evolution | 1 OCPU, 1 GB RAM, 50 GB disco - sempre grátis |
-| **Neon** | PostgreSQL 16 | 0.5 GB storage, 1 branch - sempre grátis |
+| **Vercel** | Frontend React | 100 GB banda/mês |
+| **Oracle Cloud** | VM1 `clinicai-api` | 1 OCPU, 1 GB RAM, 50 GB disco |
+| **Oracle Cloud** | VM2 `clinicai-evolution` | 1 OCPU, 1 GB RAM, 50 GB disco |
+| **Neon** | PostgreSQL 16 | 0.5 GB storage, 1 branch |
+
+## Estrutura de Deploy
+
+```
+deploy/
+├── vm1-clinicai-api/          # VM1 — Backend API (Oracle 147.15.86.5)
+│   ├── README.md              # Documentação específica da VM1
+│   ├── instance-info.txt      # OCID da instância Oracle
+│   ├── nginx.conf             # Config Nginx desta VM
+│   └── scripts/
+│       ├── deploy.sh          # Atualiza código e reinicia container
+│       ├── vm-setup.sh        # Setup inicial da VM
+│       └── backup.sh          # Backup do banco
+├── vm2-clinicai-evolution/    # VM2 — Evolution API (Oracle 163.176.167.226)
+│   ├── README.md
+│   ├── instance-info.txt
+│   ├── nginx.conf
+│   └── scripts/
+│       ├── deploy.sh
+│       └── vm-setup.sh
+├── vercel-clinic-dashboard/   # Frontend — Vercel (atendai-kanx.vercel.app)
+│   └── README.md
+└── DEPLOY-GUIDE.md            # Este arquivo
+```
 
 ---
 
@@ -35,9 +70,8 @@
 - Conta Oracle Cloud Free Tier: https://cloud.oracle.com
 - Conta Neon: https://neon.tech
 - Conta Vercel: https://vercel.com
-- Domínio próprio (ex: Cloudflare gratuito)
-- OCI CLI configurado localmente
-- Chave SSH gerada em `~/.ssh/clinicai_oracle`
+- Domínio próprio (Cloudflare recomendado — gratuito)
+- Chave SSH em `~/.ssh/clinicai_oracle`
 
 ---
 
@@ -46,9 +80,7 @@
 1. Acesse https://neon.tech → **New Project**
 2. Nome: `clinic-sas`, Region: `AWS São Paulo (sa-east-1)`
 3. Em **Connection Details**, copie a connection string
-4. Crie um segundo database para o Evolution API:
-   - Dashboard → **Databases** → **New Database** → nome: `evolution_api`
-5. Anote as duas connection strings com `?sslmode=require`
+4. Anote a connection string com `?sslmode=require`
 
 ---
 
@@ -89,16 +121,18 @@ Aguarde propagação (5-10 minutos no Cloudflare, até 24h em outros).
 
 ## Passo 4 — Setup das VMs
 
-Para cada VM (VM1 e VM2), execute o script de setup inicial:
+Para cada VM, copie e execute o script de setup:
 
-```bash
-# VM1
-ssh -i ~/.ssh/clinicai_oracle ubuntu@<IP_VM1> \
-    "curl -fsSL https://raw.githubusercontent.com/ronaldokanx-ship-it/atendai-agendai/main/deploy/scripts/vm-setup.sh | bash"
+```powershell
+# VM1 — clinicai-api
+scp -i "$env:USERPROFILE\.ssh\clinicai_oracle" `
+    deploy\vm1-clinicai-api\scripts\vm-setup.sh ubuntu@<IP_VM1>:/tmp/
+ssh -i "$env:USERPROFILE\.ssh\clinicai_oracle" ubuntu@<IP_VM1> "bash /tmp/vm-setup.sh"
 
-# VM2
-ssh -i ~/.ssh/clinicai_oracle ubuntu@<IP_VM2> \
-    "curl -fsSL https://raw.githubusercontent.com/ronaldokanx-ship-it/atendai-agendai/main/deploy/scripts/vm-setup.sh | bash"
+# VM2 — clinicai-evolution
+scp -i "$env:USERPROFILE\.ssh\clinicai_oracle" `
+    deploy\vm2-clinicai-evolution\scripts\vm-setup.sh ubuntu@<IP_VM2>:/tmp/
+ssh -i "$env:USERPROFILE\.ssh\clinicai_oracle" ubuntu@<IP_VM2> "bash /tmp/vm-setup.sh"
 ```
 
 ---
@@ -130,31 +164,40 @@ DATABASE_URL="postgresql://...@neon.tech/clinic_sas?sslmode=require" \
 
 ---
 
-## Passo 7 — Deploy VM1 (Backend API)
+## Passo 7 — Deploy VM1 (Backend API `clinicai-api`)
 
-```bash
-ssh -i ~/.ssh/clinicai_oracle ubuntu@<IP_VM1>
-cd /opt/clinicai
+```powershell
+# Emitir certificado SSL (primeira vez)
+ssh -i "$env:USERPROFILE\.ssh\clinicai_oracle" ubuntu@<IP_VM1> "
+  sudo docker run --rm -p 80:80 -v certbot_certs:/etc/letsencrypt certbot/certbot \
+    certonly --standalone -d api.seudominio.com \
+    --email seu@email.com --agree-tos --non-interactive
+"
 
-# 1. Emite certificado SSL (apenas na primeira vez)
-bash deploy/scripts/deploy-vm1.sh --ssl
-
-# 2. Faz build e inicia os serviços
-bash deploy/scripts/deploy-vm1.sh --build
+# Build e subir serviços
+ssh -i "$env:USERPROFILE\.ssh\clinicai_oracle" ubuntu@<IP_VM1> "
+  cd /opt/clinicai && sudo docker compose -f docker-compose.vm1.yml up -d --build
+"
 ```
 
-Verifique: `https://api.seudominio.com/api/health` deve retornar `{ "status": "ok" }`
+Verifique: `https://api.seudominio.com/api/healthz` deve retornar `{"status":"ok"}`
 
 ---
 
-## Passo 8 — Deploy VM2 (Evolution API / WhatsApp)
+## Passo 8 — Deploy VM2 (Evolution API `clinicai-evolution`)
 
-```bash
-ssh -i ~/.ssh/clinicai_oracle ubuntu@<IP_VM2>
-cd /opt/clinicai
+```powershell
+# Emitir certificado SSL (primeira vez)
+ssh -i "$env:USERPROFILE\.ssh\clinicai_oracle" ubuntu@<IP_VM2> "
+  sudo docker run --rm -p 80:80 -v certbot_certs:/etc/letsencrypt certbot/certbot \
+    certonly --standalone -d wa.seudominio.com \
+    --email seu@email.com --agree-tos --non-interactive
+"
 
-bash deploy/scripts/deploy-vm2.sh --ssl
-bash deploy/scripts/deploy-vm2.sh
+# Subir serviços
+ssh -i "$env:USERPROFILE\.ssh\clinicai_oracle" ubuntu@<IP_VM2> "
+  cd /opt/clinicai && sudo docker compose -f docker-compose.vm2.yml up -d
+"
 ```
 
 Acesse `https://wa.seudominio.com` — deve aparecer a Evolution Manager UI.
@@ -171,15 +214,12 @@ Acesse `https://wa.seudominio.com` — deve aparecer a Evolution Manager UI.
    ```
    VITE_API_URL = (deixe VAZIO — Vercel usa rewrites de vercel.json)
    ```
-6. Após o primeiro deploy, copie a URL (ex: `https://atendai.vercel.app`)
+6. Após o primeiro deploy, copie a URL (ex: `https://atendai-kanx.vercel.app`)
 
-**Atualizar vercel.json** com a URL da VM1:
-```bash
-# Edite artifacts/clinic-dashboard/vercel.json
-# Substitua ORACLE_VM_IP_OR_DOMAIN por api.seudominio.com
-```
-
-Faça commit e push — Vercel redeploya automaticamente.
+> **Importante:** O Vercel monitora o repo `atendai_agendai` (underscore). Faça push para os dois remotes:
+> ```powershell
+> git push origin main ; git push vercel-origin main
+> ```
 
 ---
 
@@ -187,7 +227,7 @@ Faça commit e push — Vercel redeploya automaticamente.
 
 No `.env.prod` das VMs, certifique-se de ter:
 ```env
-ALLOWED_ORIGINS=https://atendai.vercel.app,https://seudominio.com
+ALLOWED_ORIGINS=https://atendai-kanx.vercel.app,https://seudominio.com
 EVOLUTION_WEBHOOK_URL=https://api.seudominio.com
 EVOLUTION_API_URL=https://wa.seudominio.com
 EVOLUTION_PUBLIC_URL=https://wa.seudominio.com
@@ -197,16 +237,22 @@ EVOLUTION_PUBLIC_URL=https://wa.seudominio.com
 
 ## Atualizações Futuras
 
-Para atualizar o código em produção:
-```bash
-# Local: commite e faça push
-git add . && git commit -m "fix: ..." && git push origin main
+```powershell
+# 1. Commit e push (ambos os repos para acionar Vercel)
+git add . && git commit -m "fix: ..."
+git push origin main ; git push vercel-origin main
 
-# Vercel: redeploya automaticamente via GitHub Integration
+# 2. Atualizar VM1 (clinicai-api)
+ssh -i "$env:USERPROFILE\.ssh\clinicai_oracle" ubuntu@147.15.86.5 "
+  cd /opt/clinicai && sudo git pull origin main
+  sudo docker compose -f docker-compose.vm1.yml up -d --build api
+"
 
-# VMs: execute o script de deploy em cada VM
-ssh ubuntu@<IP_VM1> "cd /opt/clinicai && bash deploy/scripts/deploy-vm1.sh"
-ssh ubuntu@<IP_VM2> "cd /opt/clinicai && bash deploy/scripts/deploy-vm2.sh"
+# 3. Atualizar VM2 (clinicai-evolution) — apenas se docker-compose.vm2.yml mudou
+ssh -i "$env:USERPROFILE\.ssh\clinicai_oracle" ubuntu@163.176.167.226 "
+  cd /opt/clinicai && sudo git pull origin main
+  sudo docker compose -f docker-compose.vm2.yml up -d
+"
 ```
 
 ---

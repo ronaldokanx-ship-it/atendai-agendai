@@ -1,8 +1,281 @@
-# Guia de Deploy — Oracle Cloud Free Tier (ARM Ampere A1)
+# Infraestrutura Oracle Cloud — AtendAI
 
-> **Instância utilizada:** Always Free ARM Ampere A1 — **4 OCPUs + 24 GB RAM**  
-> **SO:** Ubuntu 22.04 LTS (aarch64)  
-> **Custo:** R$ 0,00 — permanentemente gratuito dentro dos limites Oracle Free Tier  
+> **Arquitetura:** 2× VM.Standard.E2.1.Micro (x86 AMD, 1 OCPU, 1 GB RAM) — Always Free  
+> **SO:** Ubuntu 22.04 LTS  
+> **Custo:** R$ 0,00 permanentemente
+
+---
+
+## Instâncias em Produção
+
+| Instância | IP Público | Domínio | Serviço |
+|---|---|---|---|
+| `clinicai-api` (VM1) | `147.15.86.5` | `api.kanxitsolutions.com.br` | Backend Express + Nginx |
+| `clinicai-evolution` (VM2) | `163.176.167.226` | `wa.kanxitsolutions.com.br` | Evolution API + Redis + Nginx |
+
+**Chave SSH:** `$env:USERPROFILE\.ssh\clinicai_oracle`  
+**Usuário:** `ubuntu`  
+**Diretório da aplicação:** `/opt/clinicai`
+
+---
+
+## Conexão SSH
+
+```powershell
+# VM1 — Backend API
+ssh -i "$env:USERPROFILE\.ssh\clinicai_oracle" -o StrictHostKeyChecking=no ubuntu@147.15.86.5
+
+# VM2 — Evolution API
+ssh -i "$env:USERPROFILE\.ssh\clinicai_oracle" -o StrictHostKeyChecking=no ubuntu@163.176.167.226
+```
+
+---
+
+## VM1 — Backend API (`clinicai-api`)
+
+**Container:** `clinicai-api`  
+**Stack:** Docker Compose (`docker-compose.vm1.yml`) → API Express + Nginx  
+**Health check:** `https://api.kanxitsolutions.com.br/api/healthz`
+
+### Comandos de Manutenção
+
+```bash
+# Ver logs da API
+sudo docker logs clinicai-api --since=10m -f
+
+# Reiniciar API após atualização de código
+cd /opt/clinicai
+sudo git pull origin main
+sudo docker compose -f docker-compose.vm1.yml up -d --build api
+
+# Ver estado dos containers
+sudo docker compose -f docker-compose.vm1.yml ps
+
+# Editar variáveis de ambiente
+nano /opt/clinicai/.env.prod
+# Após editar, recriar o container:
+sudo docker compose -f docker-compose.vm1.yml up -d api
+```
+
+### Variáveis de Ambiente Relevantes (`.env.prod`)
+
+```env
+DATABASE_URL=postgresql://neondb_owner:...@ep-nameless-bread-acjpjdap.sa-east-1.aws.neon.tech/neondb?sslmode=require
+AI_INTEGRATIONS_OPENAI_API_KEY=sk-or-v1-...
+GROQ_API_KEY=gsk_...
+PORT=3000
+EVOLUTION_API_URL=https://wa.kanxitsolutions.com.br
+EVOLUTION_WEBHOOK_URL=https://api.kanxitsolutions.com.br
+JWT_SECRET=...
+ADMIN_BOOTSTRAP_SECRET=...
+ALLOWED_ORIGINS=https://atendai-kanx.vercel.app,https://kanxitsolutions.com.br
+```
+
+---
+
+## VM2 — Evolution API (`clinicai-evolution`)
+
+**Container:** `clinicai-evolution`  
+**Stack:** Docker Compose (`docker-compose.vm2.yml`) → Evolution API + Redis + Nginx  
+**Manager UI:** `https://wa.kanxitsolutions.com.br`
+
+### Instância WhatsApp Configurada
+
+| Campo | Valor |
+|---|---|
+| Nome da instância | `clinica-1` |
+| Estado | `open` (conectado) |
+| Webhook | `https://api.kanxitsolutions.com.br/api/whatsapp/evolution` |
+| Eventos | `MESSAGES_UPSERT`, `MESSAGES_UPDATE`, `CONNECTION_UPDATE` |
+
+### Comandos de Manutenção
+
+```bash
+# Ver logs da Evolution
+sudo docker logs clinicai-evolution --since=10m -f
+
+# Reiniciar serviços
+cd /opt/clinicai
+sudo docker compose -f docker-compose.vm2.yml up -d
+
+# Verificar estado da instância WhatsApp
+curl -s https://wa.kanxitsolutions.com.br/instance/connectionState/clinica-1 \
+  -H "apikey: <EVOLUTION_API_KEY>"
+```
+
+---
+
+## Banco de Dados — Neon PostgreSQL
+
+**Host:** `ep-nameless-bread-acjpjdap.sa-east-1.aws.neon.tech`  
+**Database:** `neondb` · **Usuário:** `neondb_owner`  
+**Região:** `aws/sa-east-1` (São Paulo)
+
+```bash
+# Push de schema (executar localmente com DATABASE_URL do Neon)
+pnpm --filter @workspace/db run push
+
+# Conexão direta (requer psql instalado)
+psql "postgresql://neondb_owner:...@ep-nameless-bread-acjpjdap.sa-east-1.aws.neon.tech/neondb?sslmode=require"
+```
+
+> **SSL obrigatório:** sempre inclua `?sslmode=require` na connection string.
+
+---
+
+## Renovação de Certificados SSL
+
+Os certificados Let's Encrypt expiram a cada 90 dias. Renovar:
+
+```powershell
+# VM1
+ssh -i "$env:USERPROFILE\.ssh\clinicai_oracle" ubuntu@147.15.86.5 "
+  sudo docker stop clinicai-nginx 2>/dev/null
+  sudo docker run --rm -p 80:80 -v certbot_certs:/etc/letsencrypt certbot/certbot renew
+  sudo docker compose -f /opt/clinicai/docker-compose.vm1.yml up -d
+"
+
+# VM2
+ssh -i "$env:USERPROFILE\.ssh\clinicai_oracle" ubuntu@163.176.167.226 "
+  sudo docker stop clinicai-nginx-evolution 2>/dev/null
+  sudo docker run --rm -p 80:80 -v certbot_certs:/etc/letsencrypt certbot/certbot renew
+  sudo docker compose -f /opt/clinicai/docker-compose.vm2.yml up -d
+"
+```
+
+---
+
+## Criar Novo Deploy do Zero
+
+### Pré-requisitos
+
+- Conta Oracle Cloud Free Tier: https://cloud.oracle.com
+- Conta Neon: https://neon.tech
+- Conta Vercel: https://vercel.com
+- Domínio com DNS (Cloudflare recomendado — gratuito)
+- Chave SSH em `~/.ssh/clinicai_oracle`
+
+### Passo 1 — Criar VMs Oracle (x86 AMD)
+
+No Oracle Console → Compute → Instances → Create:
+
+| Campo | VM1 (API) | VM2 (Evolution) |
+|---|---|---|
+| **Nome** | `clinicai-api` | `clinicai-evolution` |
+| **Shape** | `VM.Standard.E2.1.Micro` | `VM.Standard.E2.1.Micro` |
+| **Imagem** | Ubuntu 22.04 | Ubuntu 22.04 |
+| **Boot Volume** | 50 GB | 50 GB |
+| **IP público** | Sim | Sim |
+
+> Use `VM.Standard.E2.1.Micro` (x86 AMD) — disponível no Always Free sem problemas de capacidade. Evite ARM A1 que frequentemente apresenta "Out of capacity".
+
+Após criar cada VM, na **Security List** da VCN adicione Ingress Rules:
+- TCP porta `80` (source: `0.0.0.0/0`)
+- TCP porta `443` (source: `0.0.0.0/0`)
+
+### Passo 2 — Configurar DNS
+
+```
+api.seudominio.com  → A → IP da VM1
+wa.seudominio.com   → A → IP da VM2
+```
+
+### Passo 3 — Setup das VMs
+
+```powershell
+# Copiar e executar script de setup em cada VM
+scp -i "$env:USERPROFILE\.ssh\clinicai_oracle" deploy/scripts/vm-setup.sh ubuntu@<IP_VM>:/tmp/
+ssh -i "$env:USERPROFILE\.ssh\clinicai_oracle" ubuntu@<IP_VM> "bash /tmp/vm-setup.sh"
+```
+
+### Passo 4 — Configurar .env.prod
+
+```bash
+cp .env.prod.example .env.prod
+# Preencha todos os campos
+
+# Copiar para as VMs
+scp -i ~/.ssh/clinicai_oracle .env.prod ubuntu@<IP_VM1>:/opt/clinicai/.env.prod
+scp -i ~/.ssh/clinicai_oracle .env.prod ubuntu@<IP_VM2>:/opt/clinicai/.env.prod
+```
+
+### Passo 5 — Emitir Certificados SSL
+
+```powershell
+# VM1
+ssh -i "$env:USERPROFILE\.ssh\clinicai_oracle" ubuntu@<IP_VM1> "
+  sudo docker run --rm -p 80:80 -v certbot_certs:/etc/letsencrypt certbot/certbot \
+    certonly --standalone -d api.seudominio.com \
+    --email seu@email.com --agree-tos --non-interactive
+"
+
+# VM2
+ssh -i "$env:USERPROFILE\.ssh\clinicai_oracle" ubuntu@<IP_VM2> "
+  sudo docker run --rm -p 80:80 -v certbot_certs:/etc/letsencrypt certbot/certbot \
+    certonly --standalone -d wa.seudominio.com \
+    --email seu@email.com --agree-tos --non-interactive
+"
+```
+
+### Passo 6 — Subir os Serviços
+
+```powershell
+# VM1 — API
+ssh -i "$env:USERPROFILE\.ssh\clinicai_oracle" ubuntu@<IP_VM1> "
+  cd /opt/clinicai && sudo docker compose -f docker-compose.vm1.yml up -d --build
+"
+
+# VM2 — Evolution
+ssh -i "$env:USERPROFILE\.ssh\clinicai_oracle" ubuntu@<IP_VM2> "
+  cd /opt/clinicai && sudo docker compose -f docker-compose.vm2.yml up -d
+"
+```
+
+### Passo 7 — Migrar Schema e Bootstrap
+
+```bash
+# Localmente: push do schema para o Neon
+pnpm --filter @workspace/db run push
+
+# Bootstrap superadmin (apenas uma vez)
+curl -X POST https://api.seudominio.com/api/admin/bootstrap \
+  -H "x-bootstrap-secret: <ADMIN_BOOTSTRAP_SECRET>" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@seudominio.com","password":"SenhaSegura@2026!"}'
+```
+
+---
+
+## Troubleshooting
+
+### API não responde
+```bash
+sudo docker logs clinicai-api --tail=50
+sudo docker compose -f docker-compose.vm1.yml ps
+curl -s http://localhost:3000/api/healthz
+```
+
+### Evolution não conecta ao WhatsApp
+```bash
+sudo docker logs clinicai-evolution --tail=50
+# Verifique porta 443 na Security List da VCN Oracle
+```
+
+### Banco não conecta
+```bash
+# Neon exige SSL — verifique ?sslmode=require na DATABASE_URL
+psql "$DATABASE_URL" -c "SELECT 1"
+```
+
+### Serviço PostgreSQL local (desenvolvimento Windows)
+```powershell
+# Verificar estado
+Get-Service postgresql-x64-16
+
+# Iniciar (requer admin)
+Start-Service postgresql-x64-16
+```
+
 
 ---
 
