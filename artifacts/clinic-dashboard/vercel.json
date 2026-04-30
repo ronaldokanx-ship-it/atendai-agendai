@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://ORACLE_VM_IP_OR_DOMAIN/api/:path*"
+      "destination": "https://api.kanxitsolutions.com.br/api/:path*"
     }
   ],
   "headers": [

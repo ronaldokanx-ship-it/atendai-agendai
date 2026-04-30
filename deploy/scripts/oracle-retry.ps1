@@ -1,5 +1,8 @@
 ﻿#Requires -Version 5.1
-param()
+param(
+    [string]$InstanceName = "clinicai-api",
+    [string]$OutputSuffix = ""   # ex: "-vm2" para salvar oracle-instance-vm2.txt
+)
 
 $OCI_EXE = "$env:USERPROFILE\AppData\Local\Programs\Python\Python313\Scripts\oci.exe"
 if (-not (Test-Path $OCI_EXE)) {
@@ -10,7 +13,7 @@ if (-not (Test-Path $OCI_EXE)) {
 
 $REGIONS          = @("sa-saopaulo-1")
 $REGION           = $REGIONS[0]   # regiao ativa no momento
-$INSTANCE_NAME    = "clinicai-prod"
+$INSTANCE_NAME    = $InstanceName
 # x86 AMD Always Free (sem shape_config — OCPU/RAM são fixos: 1 OCPU / 1 GB)
 $SHAPE            = "VM.Standard.E2.1.Micro"
 $OCPUS            = 1          # ignorado para E2.1.Micro (fixo), mas passado ao script
@@ -18,7 +21,7 @@ $MEMORY_GB        = 1          # ignorado para E2.1.Micro (fixo)
 $BOOT_VOLUME_GB   = 50
 $OS_IMAGE_NAME    = "Canonical Ubuntu"
 $OS_IMAGE_VERSION = "22.04"
-$LOG_FILE         = "$PSScriptRoot\oracle-retry.log"
+$LOG_FILE         = "$PSScriptRoot\oracle-retry$OutputSuffix.log"
 $MAX_HOURS        = 24
 $RETRY_INTERVAL_S = 60
 $SSH_KEY_PATH     = "$env:USERPROFILE\.ssh\clinicai_oracle.pub"
@@ -294,8 +297,8 @@ while ((Get-Date) -lt $deadline) {
                 Write-Log "  AD:        $ad" Green
                 Write-Log "  Tentativas: $attempt  |  Tempo: ${elapsed}min" Green
 
-                "INSTANCE_OCID=$id`nAVAILABILITY_DOMAIN=$ad`nREGION=$rgn`nCREATED_AT=$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')`nATTEMPTS=$attempt" |
-                    Out-File "$PSScriptRoot\oracle-instance.txt" -Encoding UTF8
+                "INSTANCE_OCID=$id`nAVAILABILITY_DOMAIN=$ad`nREGION=$rgn`nCREATED_AT=$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')`nATTEMPTS=$attempt`nINSTANCE_NAME=$INSTANCE_NAME" |
+                    Out-File "$PSScriptRoot\oracle-instance$OutputSuffix.txt" -Encoding UTF8
 
                 Write-Host ""
                 Write-Log "Arquivo salvo: $PSScriptRoot\oracle-instance.txt" Green
