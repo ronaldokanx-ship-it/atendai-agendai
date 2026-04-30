@@ -396,6 +396,11 @@ function PatientSheet({
   return (
     <Sheet open={!!patientId} onOpenChange={open => { if (!open) onClose() }}>
       <SheetContent side="right" className="w-full sm:max-w-xl flex flex-col p-0 overflow-hidden">
+        {/* Título acessível para leitores de tela — sempre presente quando o sheet está aberto */}
+        <SheetHeader className="sr-only">
+          <SheetTitle>{patient?.name ?? "Detalhes do paciente"}</SheetTitle>
+          <SheetDescription>Perfil completo e histórico de consultas do paciente.</SheetDescription>
+        </SheetHeader>
         {isLoading || !patient ? (
           <div className="flex-1 flex items-center justify-center">
             <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />

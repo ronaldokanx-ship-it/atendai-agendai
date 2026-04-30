@@ -53,12 +53,12 @@ export default function Register() {
           <div className="flex justify-center mb-1">
             <AppLogo size="lg" />
           </div>
-          <p className="text-muted-foreground">Crie a conta da sua clínica</p>
+          <p className="text-muted-foreground">Crie a conta da sua empresa</p>
         </div>
 
         <form onSubmit={handleSubmit} className="bg-card border border-border/50 rounded-2xl p-8 shadow-sm space-y-5">
           <div className="space-y-2">
-            <Label htmlFor="companyName">Nome da clínica</Label>
+            <Label htmlFor="companyName">Nome da Empresa</Label>
             <Input
               id="companyName"
               placeholder="Clínica São Paulo"
