@@ -1,12 +1,12 @@
 import { useState } from "react"
 import { useLocation } from "wouter"
-import { Building2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/contexts/auth"
+import { AppLogo } from "@/components/AppLogo"
 
 export default function Register() {
   const [form, setForm] = useState({
@@ -49,11 +49,10 @@ export default function Register() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-muted/20 px-4 py-10">
       <div className="w-full max-w-md space-y-8">
-        <div className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary/10 text-primary mb-2">
-            <Building2 className="w-7 h-7" />
+        <div className="text-center space-y-3 logo-animate-in">
+          <div className="flex justify-center mb-1">
+            <AppLogo size="lg" />
           </div>
-          <h1 className="font-display text-3xl font-bold">ClinicAI</h1>
           <p className="text-muted-foreground">Crie a conta da sua clínica</p>
         </div>
 

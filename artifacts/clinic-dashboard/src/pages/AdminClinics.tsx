@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { useLocation } from "wouter"
-import { Building2, LogOut, Stethoscope, User, Calendar, Trash2, KeyRound } from "lucide-react"
+import { LogOut, Stethoscope, User, Calendar, Trash2, KeyRound } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -28,6 +28,7 @@ import { useAuth } from "@/contexts/auth"
 import { useToast } from "@/hooks/use-toast"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
+import { AppLogo } from "@/components/AppLogo"
 
 interface ClinicRow {
   id: number
@@ -148,11 +149,8 @@ export default function AdminClinics() {
       <header className="border-b border-border/50 bg-card shadow-sm sticky top-0 z-10">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
-              <Building2 className="w-5 h-5" />
-            </div>
-            <div>
-              <h1 className="font-display font-bold text-base leading-tight">ClinicAI — Admin</h1>
+            <div className="flex items-center gap-3">
+              <AppLogo size="sm" />
               <p className="text-xs text-muted-foreground">Painel Superadmin</p>
             </div>
           </div>

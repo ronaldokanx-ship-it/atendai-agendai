@@ -6,7 +6,6 @@ import {
   Stethoscope, 
   CalendarDays, 
   MessageSquareText,
-  Building2,
   Users,
   UserCheck,
   FlaskConical,
@@ -16,6 +15,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/contexts/auth"
+import { AppLogo } from "@/components/AppLogo"
 
 interface AppLayoutProps {
   children: React.ReactNode
@@ -48,16 +48,11 @@ export function AppLayout({ children }: AppLayoutProps) {
     <div className="flex min-h-screen bg-background text-foreground">
       {/* Sidebar */}
       <aside className="fixed inset-y-0 left-0 w-64 border-r border-border/50 bg-card z-10 hidden md:flex flex-col">
-        <div className="p-6 flex items-center gap-3 border-b border-border/50">
-          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary shadow-inner">
-            <Building2 className="w-6 h-6" />
-          </div>
-          <div>
-            <h1 className="font-display font-bold text-lg leading-tight tracking-tight">ClinicAI</h1>
-            <p className="text-xs text-muted-foreground font-medium">
-              {user?.name ?? "Clínica Demo"}
-            </p>
-          </div>
+        <div className="p-6 flex flex-col gap-2 border-b border-border/50">
+          <AppLogo size="md" />
+          <p className="text-xs text-muted-foreground font-medium pl-0.5">
+            {user?.name ?? "Clínica Demo"}
+          </p>
         </div>
 
         <nav className="flex-1 p-4 space-y-1.5 overflow-y-auto">
@@ -101,10 +96,7 @@ export function AppLayout({ children }: AppLayoutProps) {
 
       {/* Mobile nav placeholder - full app would have a mobile hamburger menu */}
       <div className="md:hidden fixed top-0 inset-x-0 h-16 border-b border-border/50 bg-card z-20 flex items-center px-4 shadow-sm">
-        <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary mr-3">
-          <Building2 className="w-4 h-4" />
-        </div>
-        <h1 className="font-display font-bold text-lg">ClinicAI</h1>
+        <AppLogo size="sm" />
       </div>
 
       {/* Main Content */}

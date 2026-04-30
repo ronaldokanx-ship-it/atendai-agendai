@@ -387,7 +387,7 @@ export default function ClinicSettings() {
 
                 <p className="mt-4 text-xs text-muted-foreground">
                   * Estimativa baseada no preço atual da API GPT-4o (OpenAI): R$ 29,98/milhão de tokens (blend 65% input / 35% output).
-                  Seu uso real na ClinicAI é <strong className="text-emerald-600">gratuito</strong>.
+                  Seu uso real na AtendAI é <strong className="text-emerald-600">gratuito</strong>.
                 </p>
               </CardContent>
             </Card>
