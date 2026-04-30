@@ -8,12 +8,14 @@ if (-not (Test-Path $OCI_EXE)) {
     else { Write-Host "[ERRO] oci.exe nao encontrado." -ForegroundColor Red; exit 1 }
 }
 
-$REGION           = "sa-saopaulo-1"
+$REGIONS          = @("sa-saopaulo-1")
+$REGION           = $REGIONS[0]   # regiao ativa no momento
 $INSTANCE_NAME    = "clinicai-prod"
-$SHAPE            = "VM.Standard.A1.Flex"
-$OCPUS            = 4
-$MEMORY_GB        = 24
-$BOOT_VOLUME_GB   = 100
+# x86 AMD Always Free (sem shape_config — OCPU/RAM são fixos: 1 OCPU / 1 GB)
+$SHAPE            = "VM.Standard.E2.1.Micro"
+$OCPUS            = 1          # ignorado para E2.1.Micro (fixo), mas passado ao script
+$MEMORY_GB        = 1          # ignorado para E2.1.Micro (fixo)
+$BOOT_VOLUME_GB   = 50
 $OS_IMAGE_NAME    = "Canonical Ubuntu"
 $OS_IMAGE_VERSION = "22.04"
 $LOG_FILE         = "$PSScriptRoot\oracle-retry.log"
@@ -156,7 +158,7 @@ function Get-OrCreateSubnetOcid {
 
 function Get-ImageOcid {
     param([string]$CompartmentId)
-    Write-Log "Buscando imagem $OS_IMAGE_NAME $OS_IMAGE_VERSION ARM (aarch64)..." Cyan
+    Write-Log "Buscando imagem $OS_IMAGE_NAME $OS_IMAGE_VERSION x86_64 (AMD)..." Cyan
     $raw = & $OCI_EXE compute image list `
         --compartment-id $CompartmentId `
         --region $REGION `
@@ -166,7 +168,8 @@ function Get-ImageOcid {
         --sort-order DESC 2>&1
     try {
         $all = (ConvertFrom-OciOutput $raw).data
-        $img = $all | Where-Object { $_.'display-name' -match 'aarch64' } | Select-Object -First 1
+        # Para x86 E2.1.Micro: prefer imagens sem "aarch64" (i.e., x86_64)
+        $img = $all | Where-Object { $_.'display-name' -notmatch 'aarch64' } | Select-Object -First 1
         if (-not $img) { $img = $all | Select-Object -First 1 }
         if ($img) { Write-Log "Imagem: $($img.'display-name')" Green; return $img.id }
     } catch {}
@@ -199,7 +202,7 @@ function Invoke-CreateInstance {
     $pyExe    = "$env:USERPROFILE\AppData\Local\Programs\Python\Python313\python.exe"
     $pyScript = "$PSScriptRoot\oracle-launch.py"
 
-    $raw      = & $pyExe $pyScript $CompartmentId $SubnetId $ImageId $AvailabilityDomain $SSH_KEY_PATH 2>&1
+    $raw      = & $pyExe $pyScript $CompartmentId $SubnetId $ImageId $AvailabilityDomain $SSH_KEY_PATH $SHAPE $OCPUS $MEMORY_GB $BOOT_VOLUME_GB $script:REGION 2>&1
     $exitCode = $LASTEXITCODE
 
     if ($exitCode -eq 0) {
@@ -225,8 +228,8 @@ function Invoke-CreateInstance {
 
 Clear-Host
 Write-Host "======================================================" -ForegroundColor Cyan
-Write-Host "  Oracle Cloud ARM A1 - Retry Script (24h)           " -ForegroundColor Cyan
-Write-Host "  Regiao: $REGION  Shape: $SHAPE                     " -ForegroundColor Cyan
+Write-Host "  Oracle Cloud x86 AMD - Retry Script (24h)          " -ForegroundColor Cyan
+Write-Host "  Regioes: $($REGIONS -join ', ')  Shape: $SHAPE     " -ForegroundColor Cyan
 Write-Host "  Deadline: $($deadline.ToString('yyyy-MM-dd HH:mm:ss'))" -ForegroundColor Cyan
 Write-Host "======================================================" -ForegroundColor Cyan
 Write-Host ""
@@ -234,12 +237,30 @@ Write-Host ""
 Initialize-OciConfig
 Initialize-SshKey | Out-Null
 $compartmentId = Get-TenancyOcid
-$subnetId      = Get-OrCreateSubnetOcid -CompartmentId $compartmentId
-$imageId       = Get-ImageOcid          -CompartmentId $compartmentId
-$ads           = Get-AvailabilityDomainList -CompartmentId $compartmentId
+
+# Pre-carrega infra para cada regiao
+$regionConfigs = @{}
+foreach ($rgn in $REGIONS) {
+    $script:REGION = $rgn
+    Write-Host ""
+    Write-Host "--- Preparando regiao: $rgn ---" -ForegroundColor Cyan
+    try {
+        $s = Get-OrCreateSubnetOcid -CompartmentId $compartmentId
+        $i = Get-ImageOcid          -CompartmentId $compartmentId
+        $a = Get-AvailabilityDomainList -CompartmentId $compartmentId
+        $regionConfigs[$rgn] = @{ subnet = $s; image = $i; ads = $a }
+        Write-Log "Regiao $rgn pronta. ADs: $($a -join ', ')" Green
+    } catch {
+        Write-Log "AVISO: falha ao preparar $rgn - $_" Yellow
+    }
+}
+
+if ($regionConfigs.Count -eq 0) {
+    Write-Log "Nenhuma regiao disponivel. Abortando." Red; exit 1
+}
 
 Write-Host ""
-Write-Log "Loop iniciado. Intervalo: ${RETRY_INTERVAL_S}s. Ctrl+C para parar." Cyan
+Write-Log "Loop iniciado. Regioes: $($regionConfigs.Keys -join ', '). Intervalo: ${RETRY_INTERVAL_S}s. Ctrl+C para parar." Cyan
 Write-Host ""
 
 $attempt = 0
@@ -251,41 +272,48 @@ while ((Get-Date) -lt $deadline) {
     $remaining = [math]::Round(($deadline - (Get-Date)).TotalHours, 1)
     Write-Log "--- Tentativa #$attempt | ${elapsed}min decorridos | ${remaining}h restantes ---" Cyan
 
-    foreach ($ad in $ads) {
-        $id = Invoke-CreateInstance `
-            -CompartmentId      $compartmentId `
-            -SubnetId           $subnetId `
-            -ImageId            $imageId `
-            -AvailabilityDomain $ad
+    foreach ($rgn in $REGIONS) {
+        if (-not $regionConfigs.ContainsKey($rgn)) { continue }
+        $script:REGION = $rgn
+        $cfg = $regionConfigs[$rgn]
 
-        if ($id) {
-            Write-Host ""
-            Write-Host "======================================================" -ForegroundColor Green
-            Write-Host "  SUCESSO! Instancia criada!                          " -ForegroundColor Green
-            Write-Host "======================================================" -ForegroundColor Green
-            Write-Log "  OCID:      $id" Green
-            Write-Log "  AD:        $ad" Green
-            Write-Log "  Tentativas: $attempt  |  Tempo: ${elapsed}min" Green
+        foreach ($ad in $cfg.ads) {
+            $id = Invoke-CreateInstance `
+                -CompartmentId      $compartmentId `
+                -SubnetId           $cfg.subnet `
+                -ImageId            $cfg.image `
+                -AvailabilityDomain $ad
 
-            "INSTANCE_OCID=$id`nAVAILABILITY_DOMAIN=$ad`nREGION=$REGION`nCREATED_AT=$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')`nATTEMPTS=$attempt" |
-                Out-File "$PSScriptRoot\oracle-instance.txt" -Encoding UTF8
+            if ($id) {
+                Write-Host ""
+                Write-Host "======================================================" -ForegroundColor Green
+                Write-Host "  SUCESSO! Instancia criada!                          " -ForegroundColor Green
+                Write-Host "======================================================" -ForegroundColor Green
+                Write-Log "  OCID:      $id" Green
+                Write-Log "  Regiao:    $rgn" Green
+                Write-Log "  AD:        $ad" Green
+                Write-Log "  Tentativas: $attempt  |  Tempo: ${elapsed}min" Green
 
-            Write-Host ""
-            Write-Log "Arquivo salvo: $PSScriptRoot\oracle-instance.txt" Green
-            Write-Log "PROXIMO PASSO: Oracle Console -> Compute -> Instances -> anote o IP" Yellow
-            $created = $true
-            break
+                "INSTANCE_OCID=$id`nAVAILABILITY_DOMAIN=$ad`nREGION=$rgn`nCREATED_AT=$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')`nATTEMPTS=$attempt" |
+                    Out-File "$PSScriptRoot\oracle-instance.txt" -Encoding UTF8
+
+                Write-Host ""
+                Write-Log "Arquivo salvo: $PSScriptRoot\oracle-instance.txt" Green
+                Write-Log "PROXIMO PASSO: Oracle Console -> Compute -> Instances -> anote o IP" Yellow
+                $created = $true
+                break
+            }
         }
+        if ($created) { break }
     }
     if ($created) { break }
 
-    Write-Log "Sem capacidade em todos os ADs. Aguardando ${RETRY_INTERVAL_S}s..." DarkGray
+    Write-Log "Sem capacidade em todas as regioes. Aguardando ${RETRY_INTERVAL_S}s..." DarkGray
     Start-Sleep -Seconds $RETRY_INTERVAL_S
 }
 
 if (-not $created) {
     Write-Log "Timeout 24h atingido sem sucesso." Red
     Write-Log "Opcoes: 1) Execute de novo (madrugada tem mais capacidade)" Yellow
-    Write-Log "        2) Tente regiao us-ashburn-1 (mais ARM disponivel)" Yellow
-    Write-Log "        3) Tente 1 OCPU + 6 GB (mais facil de alocar)" Yellow
+    Write-Log "        2) Tente 1 OCPU + 6 GB no oracle-retry.ps1 (\$OCPUS=1, \$MEMORY_GB=6)" Yellow
 }
