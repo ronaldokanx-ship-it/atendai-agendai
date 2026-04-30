@@ -45,7 +45,7 @@ services:
 
   # ── Evolution API (WhatsApp) ──────────────────────────────────
   evolution:
-    image: atendai/evolution-api:v2.2.3
+    image: atendai/evolution-api:latest
     container_name: clinicai-evolution
     restart: unless-stopped
     env_file: .env.prod
