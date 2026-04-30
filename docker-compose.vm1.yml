@@ -63,6 +63,7 @@ services:
 volumes:
   certbot_www:
   certbot_certs:
+    external: true
 
 networks:
   clinicai:
