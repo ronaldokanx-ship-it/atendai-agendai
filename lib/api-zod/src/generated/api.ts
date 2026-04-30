@@ -185,6 +185,8 @@ export const UpdateClinicBody = zod.object({
     .describe(
       "Token de acesso WhatsApp Business API — enviar o valor completo para atualizar",
     ),
+  evolutionInstanceName: zod.string().nullish(),
+  schedulingEnabled: zod.boolean().optional(),
   aiEnabled: zod
     .boolean()
     .optional()
