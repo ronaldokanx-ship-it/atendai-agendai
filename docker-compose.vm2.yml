@@ -93,6 +93,7 @@ services:
       DEL_INSTANCE: "false"
       CONFIG_SESSION_PHONE_CLIENT: "ClinicAI SaaS"
       CONFIG_SESSION_PHONE_NAME: "Chrome"
+      CONFIG_SESSION_PHONE_VERSION: "2.3000.1035194821"
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8080/ | grep -q 'Evolution' || exit 1"]
       interval: 30s
