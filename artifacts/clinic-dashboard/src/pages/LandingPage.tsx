@@ -3,7 +3,7 @@ import { Link } from "wouter"
 import { motion, useInView, AnimatePresence } from "framer-motion"
 import {
   Bot, Calendar, Package2, Users, MessageSquare, Zap, CheckCircle2,
-  Star, ArrowRight, ChevronDown, Headphones, BarChart3, Brain,
+  ArrowRight, ChevronDown, Headphones, BarChart3, Brain,
   Phone, Building2, Scissors, Dumbbell, ShoppingBag, UtensilsCrossed,
   Home, Scale, BadgeCheck, Clock, TrendingUp, Shield, Menu, X,
   MessageCircle, Send, Stethoscope, Heart, Globe, Layers, Bell,
@@ -710,36 +710,6 @@ export default function LandingPage() {
                   <Icon className="w-5 h-5" style={{ color: "#25d366" }} />
                 </div>
                 <span className="text-xs font-medium leading-tight">{label}</span>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </Section>
-
-      {/* ── TESTIMONIALS ──────────────────────────────────────────────────────── */}
-      <Section style={{ background: "rgba(255,255,255,0.02)" }}>
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-12">
-            <p className="text-sm font-semibold uppercase tracking-widest mb-3" style={{ color: "#25d366" }}>Depoimentos</p>
-            <h2 className="text-3xl sm:text-4xl font-extrabold">Quem usa, não volta atrás</h2>
-          </div>
-          <div className="grid md:grid-cols-3 gap-5">
-            {[
-              { name: "Ana Beatriz", role: "Clínica de Estética", stars: 5, text: "Antes eu ficava respondendo WhatsApp até meia-noite. Hoje a IA agenda tudo e eu só apareço para trabalhar. Minha agenda nunca esteve tão cheia." },
-              { name: "Ricardo Moura", role: "Barbearia Premium", stars: 5, text: "Meus clientes adoraram! A IA envia o cardápio de serviços, confirma o horário e ainda manda lembrete. Zero falta por esquecimento." },
-              { name: "Fernanda Costa", role: "Pet Shop & Veterinária", stars: 5, text: "Implantamos em uma tarde. Em uma semana, aumentamos 40% nos agendamentos porque a IA atende fora do horário comercial." },
-            ].map(({ name, role, stars, text }) => (
-              <motion.div key={name} whileHover={{ y: -4 }}
-                className="p-6 rounded-2xl flex flex-col gap-4"
-                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                <div className="flex gap-0.5">
-                  {Array.from({ length: stars }).map((_, i) => <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />)}
-                </div>
-                <p className="text-sm leading-relaxed flex-1" style={{ color: "rgba(255,255,255,0.75)" }}>"{text}"</p>
-                <div>
-                  <p className="font-semibold text-sm text-white">{name}</p>
-                  <p className="text-xs" style={{ color: "#25d366" }}>{role}</p>
-                </div>
               </motion.div>
             ))}
           </div>
