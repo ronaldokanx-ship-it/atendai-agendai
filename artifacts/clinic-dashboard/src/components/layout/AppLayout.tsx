@@ -25,8 +25,6 @@ import { AppLogo } from "@/components/AppLogo"
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
 
-const CLINIC_ID = 1
-
 interface AppLayoutProps {
   children: React.ReactNode
 }
@@ -137,15 +135,17 @@ export function AppLayout({ children }: AppLayoutProps) {
   const [mobileOpen, setMobileOpen] = React.useState(false)
 
   const token = localStorage.getItem("clinic_token")
+  const clinicId = user?.clinicId
   const { data: clinic } = useQuery<{
     isBlocked?: boolean
     blockedReason?: string | null
     trialEndsAt?: string | null
     subscriptionStatus?: string | null
   }>({
-    queryKey: ["clinic-block-status", CLINIC_ID],
+    queryKey: ["clinic-status", clinicId],
     queryFn: () =>
-      fetch(`/api/clinics/${CLINIC_ID}`, { headers: { Authorization: `Bearer ${token}` } }).then((r) => r.json()),
+      fetch(`/api/clinics/${clinicId}`, { headers: { Authorization: `Bearer ${token}` } }).then((r) => r.json()),
+    enabled: !!clinicId,
     refetchInterval: 60_000,
   })
 

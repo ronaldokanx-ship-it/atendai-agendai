@@ -73,6 +73,8 @@ router.get("/admin/clinics", requireAuth, requireSuperAdmin, async (_req, res): 
       isBlocked: clinicsTable.isBlocked,
       blockedReason: clinicsTable.blockedReason,
       blockedAt: clinicsTable.blockedAt,
+      trialEndsAt: clinicsTable.trialEndsAt,
+      subscriptionStatus: clinicsTable.subscriptionStatus,
     })
     .from(clinicsTable)
     .orderBy(desc(clinicsTable.createdAt));

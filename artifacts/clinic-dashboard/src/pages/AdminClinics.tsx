@@ -51,11 +51,20 @@ interface ClinicRow {
   isBlocked: boolean
   blockedReason: string | null
   blockedAt: string | null
+  trialEndsAt: string | null
+  subscriptionStatus: string
   owner: { name: string; email: string } | null
   totalMessages: number
   totalAppointments: number
   totalUsers: number
   lastActivity: string | null
+}
+
+function getTrialInfo(clinic: ClinicRow) {
+  if (clinic.subscriptionStatus !== "trial") return null
+  if (!clinic.trialEndsAt) return { daysLeft: null }
+  const daysLeft = Math.ceil((new Date(clinic.trialEndsAt).getTime() - Date.now()) / 864e5)
+  return { daysLeft }
 }
 
 const CLINIC_TYPE_LABELS: Record<string, string> = {
@@ -85,6 +94,7 @@ export default function AdminClinics() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState("")
+  const [statusFilter, setStatusFilter] = useState<"all" | "trial" | "expired" | "blocked" | "active">("all")
 
   const [confirmId, setConfirmId] = useState<number | null>(null)
   const [deleting, setDeleting] = useState(false)
@@ -115,19 +125,39 @@ export default function AdminClinics() {
 
   useEffect(() => { fetchClinics() }, [])
 
+  const blockedCount = clinics.filter((c) => c.isBlocked).length
+  const trialCount = clinics.filter((c) => {
+    if (c.isBlocked) return false
+    const t = getTrialInfo(c)
+    return t !== null && t.daysLeft !== null && t.daysLeft > 0
+  }).length
+  const expiredCount = clinics.filter((c) => {
+    if (c.isBlocked) return false
+    const t = getTrialInfo(c)
+    return t !== null && t.daysLeft !== null && t.daysLeft <= 0
+  }).length
+  const activeCount = clinics.filter((c) => !c.isBlocked && c.subscriptionStatus === "active").length
+
   const filtered = clinics.filter((c) => {
     const q = search.toLowerCase()
-    return (
+    const matchesSearch = !q ||
       c.name.toLowerCase().includes(q) ||
       c.phone.includes(q) ||
       (c.owner?.email.toLowerCase().includes(q) ?? false) ||
       (c.owner?.name.toLowerCase().includes(q) ?? false)
-    )
+    if (!matchesSearch) return false
+    if (statusFilter === "trial") {
+      const t = getTrialInfo(c)
+      return !c.isBlocked && t !== null && t.daysLeft !== null && t.daysLeft > 0
+    }
+    if (statusFilter === "expired") {
+      const t = getTrialInfo(c)
+      return !c.isBlocked && t !== null && t.daysLeft !== null && t.daysLeft <= 0
+    }
+    if (statusFilter === "blocked") return c.isBlocked
+    if (statusFilter === "active") return !c.isBlocked && c.subscriptionStatus === "active"
+    return true
   })
-
-  const blockedCount = clinics.filter((c) => c.isBlocked).length
-  const totalMessages = clinics.reduce((acc, c) => acc + c.totalMessages, 0)
-  const totalAppointments = clinics.reduce((acc, c) => acc + c.totalAppointments, 0)
 
   async function handleDelete() {
     if (!confirmId) return
@@ -247,9 +277,9 @@ export default function AdminClinics() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {[
             { icon: Building, label: "Total de Empresas", value: loading ? "—" : clinics.length, color: "text-blue-600", bg: "bg-blue-100" },
-            { icon: AlertTriangle, label: "Inadimplentes", value: loading ? "—" : blockedCount, color: "text-red-600", bg: "bg-red-100" },
-            { icon: MessageSquareText, label: "Interações IA", value: loading ? "—" : totalMessages.toLocaleString("pt-BR"), color: "text-violet-600", bg: "bg-violet-100" },
-            { icon: Calendar, label: "Agendamentos", value: loading ? "—" : totalAppointments.toLocaleString("pt-BR"), color: "text-emerald-600", bg: "bg-emerald-100" },
+            { icon: Clock, label: "Em Teste", value: loading ? "—" : trialCount, color: "text-amber-600", bg: "bg-amber-100" },
+            { icon: AlertTriangle, label: "Testes Expirados", value: loading ? "—" : expiredCount, color: "text-orange-600", bg: "bg-orange-100" },
+            { icon: Ban, label: "Bloqueadas", value: loading ? "—" : blockedCount, color: "text-red-600", bg: "bg-red-100" },
           ].map((s) => (
             <Card key={s.label}>
               <CardContent className="pt-5 pb-4">
@@ -264,6 +294,27 @@ export default function AdminClinics() {
                 </div>
               </CardContent>
             </Card>
+          ))}
+        </div>
+
+        <div className="flex items-center gap-2 flex-wrap">
+          {[
+            { key: "all", label: "Todas", count: clinics.length, activeClass: "bg-blue-600 text-white" },
+            { key: "trial", label: "Em Teste", count: trialCount, activeClass: "bg-amber-500 text-white" },
+            { key: "expired", label: "Expirados", count: expiredCount, activeClass: "bg-orange-600 text-white" },
+            { key: "blocked", label: "Bloqueadas", count: blockedCount, activeClass: "bg-red-600 text-white" },
+            { key: "active", label: "Ativas", count: activeCount, activeClass: "bg-emerald-600 text-white" },
+          ].map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setStatusFilter(tab.key as typeof statusFilter)}
+              className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center gap-1.5 ${statusFilter === tab.key ? tab.activeClass : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
+            >
+              {tab.label}
+              <span className={`text-xs px-1.5 py-0.5 rounded-full ${statusFilter === tab.key ? "bg-white/25" : "bg-muted-foreground/15"}`}>
+                {loading ? "—" : tab.count}
+              </span>
+            </button>
           ))}
         </div>
 
@@ -359,11 +410,41 @@ export default function AdminClinics() {
                               <Badge variant="destructive" className="text-[10px] gap-1"><Ban className="w-3 h-3" />Bloqueada</Badge>
                               {clinic.blockedReason && <p className="text-[10px] text-muted-foreground mt-0.5 max-w-[120px] truncate" title={clinic.blockedReason}>{clinic.blockedReason}</p>}
                             </div>
-                          ) : (
-                            <Badge variant="outline" className="text-[10px] gap-1 text-emerald-700 border-emerald-200 bg-emerald-50">
-                              <ShieldCheck className="w-3 h-3" />Ativa
-                            </Badge>
-                          )}
+                          ) : (() => {
+                            const t = getTrialInfo(clinic)
+                            if (t !== null) {
+                              if (t.daysLeft === null) {
+                                return <Badge variant="outline" className="text-[10px] gap-1 text-amber-700 border-amber-200 bg-amber-50"><Clock className="w-3 h-3" />Em Teste</Badge>
+                              }
+                              if (t.daysLeft > 3) {
+                                return (
+                                  <div>
+                                    <Badge variant="outline" className="text-[10px] gap-1 text-blue-700 border-blue-200 bg-blue-50"><Clock className="w-3 h-3" />Em Teste</Badge>
+                                    <p className="text-[10px] text-muted-foreground mt-0.5">{t.daysLeft} dias restantes</p>
+                                  </div>
+                                )
+                              }
+                              if (t.daysLeft > 0) {
+                                return (
+                                  <div>
+                                    <Badge variant="outline" className="text-[10px] gap-1 text-amber-700 border-amber-300 bg-amber-50"><Clock className="w-3 h-3" />Expirando</Badge>
+                                    <p className="text-[10px] text-amber-600 font-medium mt-0.5">{t.daysLeft} dia{t.daysLeft !== 1 ? "s" : ""} restante{t.daysLeft !== 1 ? "s" : ""}</p>
+                                  </div>
+                                )
+                              }
+                              return (
+                                <div>
+                                  <Badge variant="outline" className="text-[10px] gap-1 text-orange-700 border-orange-200 bg-orange-50"><AlertTriangle className="w-3 h-3" />Teste Expirado</Badge>
+                                  {clinic.trialEndsAt && <p className="text-[10px] text-muted-foreground mt-0.5">Expirou {formatDistanceToNow(new Date(clinic.trialEndsAt), { locale: ptBR, addSuffix: true })}</p>}
+                                </div>
+                              )
+                            }
+                            return (
+                              <Badge variant="outline" className="text-[10px] gap-1 text-emerald-700 border-emerald-200 bg-emerald-50">
+                                <ShieldCheck className="w-3 h-3" />Ativa
+                              </Badge>
+                            )
+                          })()}
                         </td>
                         <td className="py-3 px-4">
                           <DropdownMenu>
