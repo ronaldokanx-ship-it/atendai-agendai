@@ -416,27 +416,25 @@ function ComparisonBar({ label, humanLabel, aiLabel, humanPct, aiPct, humanColor
   return (
     <div ref={ref} className="space-y-2">
       <p className="text-xs font-medium uppercase tracking-wider" style={{ color: "rgba(255,255,255,0.5)" }}>{label}</p>
-      <div className="flex items-center gap-3">
-        <span className="text-xs w-24 text-right shrink-0" style={{ color: "rgba(255,255,255,0.7)" }}>Sem IA</span>
-        <div className="flex-1 h-7 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.08)" }}>
-          <motion.div className="h-full rounded-full flex items-center justify-end pr-2"
+      <div className="flex items-center gap-2">
+        <span className="text-xs w-20 shrink-0 text-right" style={{ color: "rgba(255,255,255,0.7)" }}>Sem IA</span>
+        <div className="flex-1 h-6 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.08)" }}>
+          <motion.div className="h-full rounded-full"
             style={{ background: humanColor }}
             initial={{ width: 0 }} animate={{ width: inView ? `${humanPct}%` : 0 }}
-            transition={{ duration: 1, delay: 0.2 }}>
-            <span className="text-white text-xs font-bold">{humanLabel}</span>
-          </motion.div>
+            transition={{ duration: 1, delay: 0.2 }} />
         </div>
+        <span className="text-xs font-bold shrink-0 min-w-[56px]" style={{ color: "#fff" }}>{humanLabel}</span>
       </div>
-      <div className="flex items-center gap-3">
-        <span className="text-xs w-24 text-right shrink-0 font-semibold" style={{ color: "#25d366" }}>Com AtendAI</span>
-        <div className="flex-1 h-7 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.08)" }}>
-          <motion.div className="h-full rounded-full flex items-center justify-end pr-2"
+      <div className="flex items-center gap-2">
+        <span className="text-xs w-20 shrink-0 text-right font-semibold" style={{ color: "#25d366" }}>Com AtendAI</span>
+        <div className="flex-1 h-6 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.08)" }}>
+          <motion.div className="h-full rounded-full"
             style={{ background: aiColor }}
             initial={{ width: 0 }} animate={{ width: inView ? `${aiPct}%` : 0 }}
-            transition={{ duration: 1, delay: 0.5 }}>
-            <span className="text-white text-xs font-bold">{aiLabel}</span>
-          </motion.div>
+            transition={{ duration: 1, delay: 0.5 }} />
         </div>
+        <span className="text-xs font-bold shrink-0 min-w-[56px]" style={{ color: "#25d366" }}>{aiLabel}</span>
       </div>
     </div>
   )
@@ -569,12 +567,12 @@ export default function LandingPage() {
               </div>
               {/* Floating badges */}
               <motion.div animate={{ y: [0, -6, 0] }} transition={{ duration: 3, repeat: Infinity, delay: 0.5 }}
-                className="absolute -left-16 top-16 px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-2"
+                className="absolute -left-16 top-16 px-3 py-2 rounded-xl text-xs font-semibold hidden sm:flex items-center gap-2"
                 style={{ background: "rgba(37,211,102,0.15)", border: "1px solid rgba(37,211,102,0.3)", color: "#25d366", backdropFilter: "blur(8px)" }}>
                 <CheckCircle2 className="w-4 h-4" /> Agendado com sucesso!
               </motion.div>
               <motion.div animate={{ y: [0, -6, 0] }} transition={{ duration: 3.5, repeat: Infinity, delay: 1 }}
-                className="absolute -right-12 bottom-24 px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-2"
+                className="absolute -right-12 bottom-24 px-3 py-2 rounded-xl text-xs font-semibold hidden sm:flex items-center gap-2"
                 style={{ background: "rgba(99,102,241,0.15)", border: "1px solid rgba(99,102,241,0.3)", color: "#a5b4fc", backdropFilter: "blur(8px)" }}>
                 <Bot className="w-4 h-4" /> IA respondeu em 0,3s
               </motion.div>
