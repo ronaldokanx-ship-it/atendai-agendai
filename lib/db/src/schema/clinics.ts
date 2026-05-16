@@ -33,6 +33,10 @@ export const clinicsTable = pgTable("clinics", {
   isBlocked: boolean("is_blocked").notNull().default(false),
   blockedReason: text("blocked_reason"),
   blockedAt: timestamp("blocked_at", { withTimezone: true }),
+  // Trial / Assinatura
+  trialEndsAt: timestamp("trial_ends_at", { withTimezone: true }),
+  subscriptionStatus: text("subscription_status").notNull().default("active"),
+  // 'trial' = em período de teste | 'active' = assinatura ativa | 'expired' = expirado | 'suspended' = suspenso
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

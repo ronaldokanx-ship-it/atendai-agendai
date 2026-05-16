@@ -16,6 +16,8 @@ import {
   Menu,
   AlertTriangle,
   Package,
+  Clock,
+  Rocket,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/contexts/auth"
@@ -79,9 +81,32 @@ function NavLinks({
   )
 }
 
-function SidebarFooter({ logout }: { logout: () => void }) {
+function SidebarFooter({ logout, trialDaysLeft, subscriptionStatus }: {
+  logout: () => void
+  trialDaysLeft: number | null
+  subscriptionStatus?: string | null
+}) {
+  const showTrial = subscriptionStatus === "trial" && trialDaysLeft !== null && trialDaysLeft > 0
+  const isExpired = subscriptionStatus === "trial" && trialDaysLeft !== null && trialDaysLeft <= 0
   return (
     <div className="p-4 border-t border-border/50 space-y-2">
+      {showTrial && (
+        <div className={cn(
+          "flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium",
+          trialDaysLeft! <= 3
+            ? "bg-amber-500/10 text-amber-500 border border-amber-500/20"
+            : "bg-primary/10 text-primary border border-primary/20"
+        )}>
+          <Clock className="w-3.5 h-3.5 shrink-0" />
+          {trialDaysLeft === 1 ? "Último dia de teste!" : `${trialDaysLeft} dias de teste restantes`}
+        </div>
+      )}
+      {isExpired && (
+        <div className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium bg-destructive/10 text-destructive border border-destructive/20">
+          <Clock className="w-3.5 h-3.5 shrink-0" />
+          Teste expirado
+        </div>
+      )}
       <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-background/50 border border-border/50 shadow-sm">
         <div className="relative flex h-3 w-3">
           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -112,7 +137,12 @@ export function AppLayout({ children }: AppLayoutProps) {
   const [mobileOpen, setMobileOpen] = React.useState(false)
 
   const token = localStorage.getItem("clinic_token")
-  const { data: clinic } = useQuery<{ isBlocked?: boolean; blockedReason?: string | null }>({
+  const { data: clinic } = useQuery<{
+    isBlocked?: boolean
+    blockedReason?: string | null
+    trialEndsAt?: string | null
+    subscriptionStatus?: string | null
+  }>({
     queryKey: ["clinic-block-status", CLINIC_ID],
     queryFn: () =>
       fetch(`/api/clinics/${CLINIC_ID}`, { headers: { Authorization: `Bearer ${token}` } }).then((r) => r.json()),
@@ -122,6 +152,12 @@ export function AppLayout({ children }: AppLayoutProps) {
   const visibleItems = NAV_ITEMS.filter(item =>
     !item.visibleTo || (user?.role && item.visibleTo.includes(user.role))
   )
+
+  const trialDaysLeft = clinic?.trialEndsAt
+    ? Math.ceil((new Date(clinic.trialEndsAt).getTime() - Date.now()) / 864e5)
+    : null
+  const isTrialExpired = clinic?.subscriptionStatus === "trial" && trialDaysLeft !== null && trialDaysLeft <= 0
+  const isTrialWarning = clinic?.subscriptionStatus === "trial" && trialDaysLeft !== null && trialDaysLeft > 0 && trialDaysLeft <= 3
 
   return (
     <div className="flex min-h-screen bg-background text-foreground">
@@ -138,7 +174,7 @@ export function AppLayout({ children }: AppLayoutProps) {
           <NavLinks items={visibleItems} location={location} />
         </nav>
 
-        <SidebarFooter logout={logout} />
+        <SidebarFooter logout={logout} trialDaysLeft={trialDaysLeft} subscriptionStatus={clinic?.subscriptionStatus} />
       </aside>
 
       {/* ── Mobile Top Bar ── */}
@@ -174,7 +210,7 @@ export function AppLayout({ children }: AppLayoutProps) {
             />
           </nav>
 
-          <SidebarFooter logout={logout} />
+          <SidebarFooter logout={logout} trialDaysLeft={trialDaysLeft} subscriptionStatus={clinic?.subscriptionStatus} />
         </SheetContent>
       </Sheet>
 
@@ -194,9 +230,54 @@ export function AppLayout({ children }: AppLayoutProps) {
             </span>
           </div>
         )}
-        <div className="flex-1 p-4 md:p-8 mt-16 md:mt-0 max-w-7xl mx-auto w-full">
-          {children}
-        </div>
+        {/* Banner de trial expirando em breve */}
+        {isTrialWarning && !clinic?.isBlocked && (
+          <div className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-2.5 flex items-center gap-3 text-sm font-medium sticky top-16 md:top-0 z-30 text-amber-600 dark:text-amber-400">
+            <Clock className="w-4 h-4 shrink-0" />
+            <span>
+              Seu período de teste termina em <strong>{trialDaysLeft} {trialDaysLeft === 1 ? "dia" : "dias"}</strong>.{" "}
+              <a href="/#precos" className="underline font-semibold hover:opacity-80 transition-opacity">
+                Assine agora para não perder acesso →
+              </a>
+            </span>
+          </div>
+        )}
+        {/* Paywall: trial expirado */}
+        {isTrialExpired && !clinic?.isBlocked ? (
+          <div className="flex-1 flex items-center justify-center p-8">
+            <div className="max-w-md w-full text-center space-y-6">
+              <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mx-auto">
+                <Clock className="w-8 h-8 text-muted-foreground" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold">Período de teste encerrado</h2>
+                <p className="mt-2 text-muted-foreground text-sm leading-relaxed">
+                  Seus 14 dias gratuitos chegaram ao fim. Escolha um plano para continuar usando o AtendAI sem interrupções.
+                </p>
+              </div>
+              <div className="flex flex-col gap-3">
+                <a href="/#precos">
+                  <button className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm bg-primary text-primary-foreground hover:opacity-90 transition-opacity">
+                    <Rocket className="w-4 h-4" />
+                    Ver planos e assinar
+                  </button>
+                </a>
+                <a
+                  href="https://kanxitsolutions.com.br/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Falar com suporte
+                </a>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="flex-1 p-4 md:p-8 mt-16 md:mt-0 max-w-7xl mx-auto w-full">
+            {children}
+          </div>
+        )}
       </main>
     </div>
   )

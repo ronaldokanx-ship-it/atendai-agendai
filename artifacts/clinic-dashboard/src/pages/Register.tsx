@@ -56,6 +56,10 @@ export default function Register() {
             <AppLogo size="lg" />
           </div>
           <p className="text-muted-foreground">Crie a conta da sua empresa</p>
+          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            14 dias grátis · Sem cartão de crédito
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="bg-card border border-border/60 rounded-2xl p-5 sm:p-8 shadow-md space-y-5">
@@ -137,7 +141,7 @@ export default function Register() {
             </div>
           </div>
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Criando conta..." : "Criar conta"}
+            {loading ? "Criando conta..." : "Começar teste grátis de 14 dias"}
           </Button>
           <p className="text-center text-sm text-muted-foreground">
             Já tem conta?{" "}

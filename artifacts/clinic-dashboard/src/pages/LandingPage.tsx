@@ -590,12 +590,11 @@ export default function LandingPage() {
 
       {/* ── STATS BAR ────────────────────────────────────────────────────────── */}
       <div style={{ background: "rgba(255,255,255,0.03)", borderTop: "1px solid rgba(255,255,255,0.06)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-        <div className="max-w-5xl mx-auto px-4 py-10 grid grid-cols-2 sm:grid-cols-4 gap-8 text-center">
+        <div className="max-w-5xl mx-auto px-4 py-10 grid grid-cols-1 sm:grid-cols-3 gap-8 text-center">
           {[
-            { to: 500, suffix: "+", label: "Empresas atendidas" },
-            { to: 98, suffix: "%", label: "Taxa de satisfação" },
-            { to: 24, suffix: "h/dia", label: "Disponibilidade" },
+            { to: 24, suffix: "h/dia", label: "Disponibilidade garantida" },
             { to: 70, suffix: "% menos", label: "Custo por atendimento" },
+            { to: 98, suffix: "%", label: "Taxa de satisfação" },
           ].map(({ to, suffix, label }) => (
             <div key={label}>
               <p className="text-3xl sm:text-4xl font-extrabold" style={{ color: "#25d366" }}>

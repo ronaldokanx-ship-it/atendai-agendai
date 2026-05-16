@@ -63,6 +63,8 @@ router.post("/auth/register", async (req, res): Promise<void> => {
       phone: `temp-${Date.now()}`,
       apiKey,
       clinicType,
+      trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+      subscriptionStatus: "trial",
     }).returning({ id: clinicsTable.id, name: clinicsTable.name });
 
     const [user] = await tx.insert(usersTable).values({
