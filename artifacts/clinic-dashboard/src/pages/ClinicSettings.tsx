@@ -868,17 +868,6 @@ export default function ClinicSettings() {
                     </Button>
                   </div>
                 )}
-
-                {/* Webhook info */}
-                {clinic?.evolutionInstanceName && (
-                  <div className="rounded-lg bg-muted/50 border border-border/50 p-3 space-y-1">
-                    <p className="text-xs font-medium text-muted-foreground">URL do Webhook (configurar na instância):</p>
-                    <code className="text-xs font-mono break-all block">
-                      http://host.docker.internal:3000/api/whatsapp/evolution
-                    </code>
-                    <p className="text-xs text-muted-foreground">Eventos: <strong>MESSAGES_UPSERT</strong>, <strong>MESSAGES_UPDATE</strong></p>
-                  </div>
-                )}
               </CardContent>
             </Card>
 
