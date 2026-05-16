@@ -4,6 +4,7 @@ import authRouter from "./auth";
 import adminRouter from "./admin";
 import clinicsRouter from "./clinics";
 import servicesRouter from "./services";
+import productsRouter from "./products";
 import professionalsRouter from "./professionals";
 import patientsRouter from "./patients";
 import appointmentsRouter from "./appointments";
@@ -48,6 +49,7 @@ router.use((req, res, next) => {
 
 router.use(clinicsRouter);
 router.use(servicesRouter);
+router.use(productsRouter);
 router.use(professionalsRouter);
 router.use(patientsRouter);
 router.use(appointmentsRouter);

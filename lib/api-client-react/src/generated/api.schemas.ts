@@ -179,6 +179,58 @@ export interface UpdateServiceBody {
   active?: boolean;
 }
 
+export interface Product {
+  id: number;
+  clinicId: number;
+  name: string;
+  /** @nullable */
+  description?: string | null;
+  /**
+   * Preço do produto; null = sob consulta
+   * @nullable
+   */
+  price?: number | null;
+  available: boolean;
+  /**
+   * Link externo (produto digital)
+   * @nullable
+   */
+  link?: string | null;
+  /** Lista de URLs de imagens do produto */
+  imageUrls: string[];
+  /**
+   * URL do áudio de apresentação do produto
+   * @nullable
+   */
+  audioUrl?: string | null;
+  /** @nullable */
+  category?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateProductBody {
+  name: string;
+  description?: string;
+  price?: number | null;
+  available?: boolean;
+  link?: string | null;
+  imageUrls?: string[];
+  audioUrl?: string | null;
+  category?: string | null;
+}
+
+export interface UpdateProductBody {
+  name?: string;
+  description?: string | null;
+  price?: number | null;
+  available?: boolean;
+  link?: string | null;
+  imageUrls?: string[];
+  audioUrl?: string | null;
+  category?: string | null;
+}
+
 export interface Professional {
   id: number;
   clinicId: number;

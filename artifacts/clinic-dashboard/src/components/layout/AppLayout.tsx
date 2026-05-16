@@ -15,6 +15,7 @@ import {
   UsersRound,
   Menu,
   AlertTriangle,
+  Package,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/contexts/auth"
@@ -36,6 +37,7 @@ const NAV_ITEMS = [
   { href: "/services", label: "Serviços", icon: Stethoscope },
   { href: "/professionals", label: "Profissionais", icon: UserCheck },
   { href: "/patients", label: "Clientes", icon: Users },
+  { href: "/products", label: "Produtos", icon: Package },
   { href: "/team", label: "Equipe", icon: UsersRound, visibleTo: ["owner", "supervisor"] as string[] },
   { href: "/logs", label: "Logs de IA", icon: MessageSquareText, visibleTo: ["owner", "supervisor"] as string[] },
   { href: "/chat", label: "Testar IA", icon: FlaskConical, visibleTo: ["owner", "supervisor"] as string[] },

@@ -13,6 +13,8 @@ tags:
     description: Clinic management
   - name: services
     description: Services offered by a clinic
+  - name: products
+    description: Products catalog for a clinic
   - name: professionals
     description: Professionals and their specialties
   - name: patients
@@ -202,6 +204,98 @@ paths:
       operationId: deleteService
       tags: [services]
       summary: Delete a service
+      parameters:
+        - name: clinicId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /clinics/{clinicId}/products:
+    get:
+      operationId: listProducts
+      tags: [products]
+      summary: List products for a clinic
+      parameters:
+        - name: clinicId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of products
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Product"
+    post:
+      operationId: createProduct
+      tags: [products]
+      summary: Create a product for a clinic
+      parameters:
+        - name: clinicId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProductBody"
+      responses:
+        "201":
+          description: Created product
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+
+  /clinics/{clinicId}/products/{id}:
+    patch:
+      operationId: updateProduct
+      tags: [products]
+      summary: Update a product
+      parameters:
+        - name: clinicId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProductBody"
+      responses:
+        "200":
+          description: Updated product
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+    delete:
+      operationId: deleteProduct
+      tags: [products]
+      summary: Delete a product
       parameters:
         - name: clinicId
           in: path
@@ -1003,6 +1097,97 @@ components:
           type: integer
         active:
           type: boolean
+
+    Product:
+      type: object
+      properties:
+        id:
+          type: integer
+        clinicId:
+          type: integer
+        name:
+          type: string
+        description:
+          type: ["string", "null"]
+        price:
+          type: ["number", "null"]
+          description: "Preço do produto; null = sob consulta"
+        available:
+          type: boolean
+        link:
+          type: ["string", "null"]
+          description: "Link externo (produto digital)"
+        imageUrls:
+          type: array
+          items:
+            type: string
+          description: "Lista de URLs de imagens do produto"
+        audioUrl:
+          type: ["string", "null"]
+          description: "URL do áudio de apresentação do produto"
+        category:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, clinicId, name, available, imageUrls, createdAt, updatedAt]
+
+    CreateProductBody:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        price:
+          type: number
+          nullable: true
+        available:
+          type: boolean
+        link:
+          type: string
+          nullable: true
+        imageUrls:
+          type: array
+          items:
+            type: string
+        audioUrl:
+          type: string
+          nullable: true
+        category:
+          type: string
+          nullable: true
+      required: [name]
+
+    UpdateProductBody:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        price:
+          type: number
+          nullable: true
+        available:
+          type: boolean
+        link:
+          type: string
+          nullable: true
+        imageUrls:
+          type: array
+          items:
+            type: string
+        audioUrl:
+          type: string
+          nullable: true
+        category:
+          type: string
+          nullable: true
 
     Professional:
       type: object

@@ -1,7 +1,7 @@
 import OpenAI from "openai";
 import type { ChatCompletion, ChatCompletionMessageFunctionToolCall } from "openai/resources/chat/completions";
-import { db, clinicsTable, servicesTable, appointmentsTable, aiLogsTable, professionalsTable, professionalServicesTable, patientsTable, professionalSchedulesTable } from "@workspace/db";
-import { eq, and, gte, lte, inArray, desc } from "drizzle-orm";
+import { db, clinicsTable, servicesTable, appointmentsTable, aiLogsTable, professionalsTable, professionalServicesTable, patientsTable, professionalSchedulesTable, productsTable } from "@workspace/db";
+import { eq, and, gte, lte, inArray, desc, or, ilike } from "drizzle-orm";
 import { logger } from "./logger";
 
 if (!process.env.AI_INTEGRATIONS_OPENAI_API_KEY) {
@@ -168,6 +168,23 @@ const AI_TOOLS: OpenAI.Chat.ChatCompletionTool[] = [
   {
     type: "function",
     function: {
+      name: "search_products",
+      description: "Busca produtos/itens da empresa pelo nome, descrição ou categoria. Use quando o cliente perguntar sobre produtos, preços de produtos, disponibilidade de um item específico, ou quando quiser apresentar opções de produtos. Retorna nome, descrição, preço, link (produto digital) e URLs de imagem/áudio para compartilhar com o cliente.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: {
+            type: "string",
+            description: "Nome, categoria ou descrição do produto que o cliente quer encontrar. Deixe vazio para listar todos os produtos disponíveis.",
+          },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "list_options",
       description: "Apresenta opções clicáveis ao paciente pelo WhatsApp. Use para: escolha entre serviços, escolha de profissional, confirmação de ações (sim/não). PROIBIDO usar para apresentar horários disponíveis — para horários use EXCLUSIVAMENTE check_availability. IDs das opções devem ser prefixos válidos como 'SVC|N', 'DATE|YYYY-MM-DD' — NUNCA use IDs genéricos como 'slot_1', 'opt_1', 'time_1'.",
       parameters: {
@@ -271,8 +288,8 @@ interface ClinicConfig {
 /** Retorna as ferramentas disponíveis conforme o modo da empresa */
 function getTools(schedulingEnabled: boolean): OpenAI.Chat.ChatCompletionTool[] {
   if (schedulingEnabled) return AI_TOOLS;
-  // Empresas sem agendamento só têm acesso a faq_lookup, list_options e save_patient_info
-  const NON_SCHEDULING = new Set(["faq_lookup", "list_options", "save_patient_info"]);
+  // Empresas sem agendamento só têm acesso a faq_lookup, search_products, list_options e save_patient_info
+  const NON_SCHEDULING = new Set(["faq_lookup", "search_products", "list_options", "save_patient_info"]);
   return AI_TOOLS.filter(t => {
     if (t.type !== "function") return false;
     const tool = t as { type: "function"; function: { name: string } };
@@ -402,7 +419,7 @@ async function buildAlternativeDatesChoice(
  * Limpa markdown code blocks e linhas JSON antes de enviar ao paciente.
  */
 // Nomes de ferramentas — usados para filtrar pseudo-chamadas geradas em modo noTools
-const TOOL_NAMES_REGEX = /\b(save_patient_info|book_appointment|check_availability|list_options|find_available_dates|faq_lookup)\s*[>({]/;
+const TOOL_NAMES_REGEX = /\b(save_patient_info|book_appointment|check_availability|list_options|find_available_dates|faq_lookup|search_products)\s*[>({]/;
 
 function sanitizeReply(reply: string): string {
   // Remove blocos ```...``` (incluindo ```json)
@@ -1222,6 +1239,57 @@ async function executeToolCall(
       return { text: "Não encontrei informações específicas sobre isso na nossa base de conhecimento. Por favor, entre em contato direto conosco para mais detalhes." };
     }
 
+    if (toolName === "search_products") {
+      const { query } = args as { query?: string };
+      const q = query?.trim() ?? "";
+
+      const whereClause = q
+        ? and(
+            eq(productsTable.clinicId, clinicId),
+            or(
+              ilike(productsTable.name, `%${q}%`),
+              ilike(productsTable.description, `%${q}%`),
+              ilike(productsTable.category, `%${q}%`)
+            )
+          )
+        : eq(productsTable.clinicId, clinicId);
+
+      const products = await db
+        .select()
+        .from(productsTable)
+        .where(whereClause)
+        .orderBy(productsTable.name);
+
+      if (products.length === 0) {
+        return { text: q
+          ? `Não encontrei produtos relacionados a "${q}". Posso ajudar com outra coisa?`
+          : "Ainda não há produtos cadastrados." };
+      }
+
+      // Serializar para texto legível pela IA
+      const lines = products
+        .filter(p => p.available)
+        .map(p => {
+          const price = p.price != null ? `R$ ${Number(p.price).toFixed(2).replace(".", ",")}` : "Sob consulta";
+          const parts: string[] = [`• *${p.name}*`];
+          if (p.category) parts.push(`  Categoria: ${p.category}`);
+          if (p.description) parts.push(`  ${p.description}`);
+          parts.push(`  Preço: ${price}`);
+          if (p.link) parts.push(`  🔗 Link: ${p.link}`);
+          if (p.imageUrls) {
+            const imgs = p.imageUrls.split("\n").filter(Boolean);
+            if (imgs.length > 0) parts.push(`  📷 Imagem: ${imgs[0]}`);
+          }
+          if (p.audioUrl) parts.push(`  🎙️ Áudio: ${p.audioUrl}`);
+          return parts.join("\n");
+        });
+
+      const unavailable = products.filter(p => !p.available).length;
+      const header = `Encontrei ${lines.length} produto(s)${q ? ` para "${q}"` : ""}:\n\n`;
+      const footer = unavailable > 0 ? `\n\n_(${unavailable} produto(s) fora de estoque não exibido(s))_` : "";
+      return { text: header + lines.join("\n\n") + footer };
+    }
+
     if (toolName === "save_patient_info") {
       const { name, phone: rawPhoneInput, notes } = args as { name?: string; phone?: string; notes?: string };
 
@@ -1427,6 +1495,7 @@ Os ÚNICOS profissionais existentes nesta clínica são EXATAMENTE os listados a
 - PROIBIDO responder de forma robótica ou mecânica. Prefira variações naturais como: "Consegui alguns horários disponíveis pra você 😊 — qual fica melhor?" / "Perfeito! Dá uma olhada abaixo e me diz qual prefere 👇" / "Prontinho! Agendamento confirmado com sucesso! 🎉 Qualquer dúvida, estou aqui."
 - EMPATIA EM PRIMEIRO LUGAR: Se o ${clientLabel} mencionar dor, mal-estar, urgência, preocupação ou qualquer sofrimento, reconheça e demonstre empatia genuína ANTES de apresentar horários ou opções. NUNCA responda "Ótimo!" ou "Perfeito!" a relatos de dor ou sofrimento. Prefira: "Ai, que pena que você está passando por isso 😔 Vou te ajudar a encontrar um horário o quanto antes!" / "Sinto muito! Vamos resolver isso logo 🙏"
 - Para dúvidas sobre a empresa, produtos ou serviços: use \`faq_lookup\`.
+- Para apresentar ou pesquisar produtos cadastrados (preços, links, imagens): use \`search_products\`. Se o cliente perguntar sobre um produto específico ou pedir para ver o catálogo, use esta ferramenta.
 - Captura de dados do ${clientLabel}: Sempre que souber o nome do ${clientLabel}, chame \`save_patient_info\` imediatamente. Quando o ${clientLabel} informar o número de telefone (especialmente usuários WhatsApp Privacy), chame \`save_patient_info\` com o campo phone. Quando o ${clientLabel} mencionar interesses, chame \`save_patient_info\` com uma anotação concisa. Não avise o ${clientLabel} que está salvando — faça de forma transparente.
 ${clinic.schedulingEnabled ? `- PROIBIDO calcular dias da semana — você erra com frequência. O sistema calcula e exibe automaticamente.
 - PROIBIDO usar list_options para apresentar datas — use find_available_dates, que gera os botões com dias corretos.

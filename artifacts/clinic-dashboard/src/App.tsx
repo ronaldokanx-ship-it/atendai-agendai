@@ -11,6 +11,7 @@ import { AdminProtectedRoute } from "@/components/layout/AdminProtectedRoute";
 import Dashboard from "@/pages/Dashboard";
 import AiSettings from "@/pages/AiSettings";
 import Services from "@/pages/Services";
+import Products from "@/pages/Products";
 import Professionals from "@/pages/Professionals";
 import Patients from "@/pages/Patients";
 import Appointments from "@/pages/Appointments";
@@ -52,6 +53,7 @@ function Router() {
               <Route path="/dashboard" component={Dashboard} />
               <Route path="/settings/ai" component={AiSettings} />
               <Route path="/services" component={Services} />
+              <Route path="/products" component={Products} />
               <Route path="/professionals" component={Professionals} />
               <Route path="/patients" component={Patients} />
               <Route path="/appointments" component={Appointments} />

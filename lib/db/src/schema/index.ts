@@ -1,5 +1,6 @@
 export * from "./clinics";
 export * from "./services";
+export * from "./products";
 export * from "./professionals";
 export * from "./professional_schedules";
 export * from "./patients";

@@ -366,6 +366,105 @@ export const DeleteServiceParams = zod.object({
 });
 
 /**
+ * @summary List products for a clinic
+ */
+export const ListProductsParams = zod.object({
+  clinicId: zod.coerce.number(),
+});
+
+export const ListProductsResponseItem = zod.object({
+  id: zod.number(),
+  clinicId: zod.number(),
+  name: zod.string(),
+  description: zod.string().nullish(),
+  price: zod
+    .number()
+    .nullish()
+    .describe("Preço do produto; null = sob consulta"),
+  available: zod.boolean(),
+  link: zod.string().nullish().describe("Link externo (produto digital)"),
+  imageUrls: zod
+    .array(zod.string())
+    .describe("Lista de URLs de imagens do produto"),
+  audioUrl: zod
+    .string()
+    .nullish()
+    .describe("URL do áudio de apresentação do produto"),
+  category: zod.string().nullish(),
+  createdAt: zod.date(),
+  updatedAt: zod.date(),
+});
+export const ListProductsResponse = zod.array(ListProductsResponseItem);
+
+/**
+ * @summary Create a product for a clinic
+ */
+export const CreateProductParams = zod.object({
+  clinicId: zod.coerce.number(),
+});
+
+export const CreateProductBody = zod.object({
+  name: zod.string(),
+  description: zod.string().optional(),
+  price: zod.number().nullish(),
+  available: zod.boolean().optional(),
+  link: zod.string().nullish(),
+  imageUrls: zod.array(zod.string()).optional(),
+  audioUrl: zod.string().nullish(),
+  category: zod.string().nullish(),
+});
+
+/**
+ * @summary Update a product
+ */
+export const UpdateProductParams = zod.object({
+  clinicId: zod.coerce.number(),
+  id: zod.coerce.number(),
+});
+
+export const UpdateProductBody = zod.object({
+  name: zod.string().optional(),
+  description: zod.string().nullish(),
+  price: zod.number().nullish(),
+  available: zod.boolean().optional(),
+  link: zod.string().nullish(),
+  imageUrls: zod.array(zod.string()).optional(),
+  audioUrl: zod.string().nullish(),
+  category: zod.string().nullish(),
+});
+
+export const UpdateProductResponse = zod.object({
+  id: zod.number(),
+  clinicId: zod.number(),
+  name: zod.string(),
+  description: zod.string().nullish(),
+  price: zod
+    .number()
+    .nullish()
+    .describe("Preço do produto; null = sob consulta"),
+  available: zod.boolean(),
+  link: zod.string().nullish().describe("Link externo (produto digital)"),
+  imageUrls: zod
+    .array(zod.string())
+    .describe("Lista de URLs de imagens do produto"),
+  audioUrl: zod
+    .string()
+    .nullish()
+    .describe("URL do áudio de apresentação do produto"),
+  category: zod.string().nullish(),
+  createdAt: zod.date(),
+  updatedAt: zod.date(),
+});
+
+/**
+ * @summary Delete a product
+ */
+export const DeleteProductParams = zod.object({
+  clinicId: zod.coerce.number(),
+  id: zod.coerce.number(),
+});
+
+/**
  * @summary List professionals for a clinic
  */
 export const ListProfessionalsParams = zod.object({
