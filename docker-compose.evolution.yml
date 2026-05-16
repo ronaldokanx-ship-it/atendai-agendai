@@ -1,0 +1,123 @@
+# ============================================================
+#  Evolution API — WhatsApp Business de Código Aberto
+#  Docs: https://doc.evolution-api.com
+# ============================================================
+#
+#  QUICK START:
+#
+#  1. Crie o banco "evolution_api" no PostgreSQL local (porta 5433):
+#       psql -U postgres -p 5433 -c "CREATE DATABASE evolution_api;"
+#
+#  2. Suba os containers:
+#       docker compose -f docker-compose.evolution.yml up -d
+#
+#  3. Acesse o Manager UI:
+#       http://localhost:8080/manager
+#       (use a chave em AUTHENTICATION_API_KEY abaixo)
+#
+#  4. Crie uma instância para cada clínica (ex: "clinica-1").
+#     O nome da instância deve ser IDÊNTICO ao campo
+#     "Nome da Instância" configurado em Integrações no painel SaaS.
+#
+#  5. Conecte o WhatsApp escaneando o QR Code da instância.
+#
+#  6. Configure o Webhook da instância no Manager UI:
+#       URL:     http://host.docker.internal:3000/api/whatsapp/evolution
+#       Eventos: MESSAGES_UPSERT, MESSAGES_UPDATE
+#
+# ============================================================
+
+services:
+
+  # ── Redis: cache de sessões Baileys (WA sessions) ──────────
+  evolution-redis:
+    image: redis:7-alpine
+    container_name: evolution-redis-sas
+    restart: unless-stopped
+    ports:
+      - "6380:6379"          # 6380 para não conflitar com Redis local
+    command: >
+      redis-server
+      --save 60 1
+      --loglevel warning
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+    volumes:
+      - evolution_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Evolution API ───────────────────────────────────────────
+  evolution-api:
+    image: evolution-api-custom:latest
+    container_name: evolution-api-sas
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    depends_on:
+      evolution-redis:
+        condition: service_healthy
+    extra_hosts:
+      # Permite que o container acesse o host (PostgreSQL na porta 5433)
+      - "host.docker.internal:host-gateway"
+    sysctls:
+      # TCP keepalive agressivo — evita que o NAT do Docker/WSL2 corte as conexões
+      # WebSocket de longa duração com os servidores WhatsApp
+      net.ipv4.tcp_keepalive_time: 30
+      net.ipv4.tcp_keepalive_intvl: 10
+      net.ipv4.tcp_keepalive_probes: 5
+    volumes:
+      - evolution_instances:/evolution/instances
+    environment:
+      # ── Servidor ────────────────────────────────────────────
+      SERVER_PORT: "8080"
+      SERVER_URL: "http://localhost:8080"
+
+      # ── Logs ────────────────────────────────────────────────
+      LOG_LEVEL: "ERROR,WARN,INFO"
+      LOG_COLOR: "true"
+      LOG_BAILEYS: "warn"
+
+      # ── Banco de dados (PostgreSQL do host na porta 5433) ───
+      DATABASE_ENABLED: "true"
+      DATABASE_PROVIDER: "postgresql"
+      DATABASE_CONNECTION_URI: "postgresql://postgres:postgres@host.docker.internal:5433/evolution_api"
+      DATABASE_CONNECTION_CLIENT_NAME: "evolution_clinicsas"
+      DATABASE_SAVE_DATA_INSTANCE: "true"
+      DATABASE_SAVE_DATA_NEW_MESSAGE: "true"
+      DATABASE_SAVE_MESSAGE_UPDATE: "true"
+      DATABASE_SAVE_DATA_CONTACTS: "false"
+      DATABASE_SAVE_DATA_CHATS: "false"
+
+      # ── Cache Redis ─────────────────────────────────────────
+      # Redis desabilitado durante conexão inicial (issue #2463 — evita CPU stall)
+      CACHE_REDIS_ENABLED: "false"
+      CACHE_REDIS_URI: "redis://evolution-redis:6379/6"
+      CACHE_REDIS_PREFIX_KEY: "evo"
+      CACHE_REDIS_SAVE_INSTANCES: "false"
+      CACHE_LOCAL_ENABLED: "true"
+
+      # ── Autenticação ─────────────────────────────────────────
+      # IMPORTANTE: troque "evo-key-change-me-in-production" em produção!
+      AUTHENTICATION_TYPE: "apikey"
+      AUTHENTICATION_API_KEY: "evo-key-change-me-in-production"
+      AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES: "true"
+
+      # ── Webhook global (desabilitado — configurado por instância) ──
+      WEBHOOK_GLOBAL_ENABLED: "false"
+
+      # ── Sessão ──────────────────────────────────────────────
+      DEL_INSTANCE: "false"
+      CONFIG_SESSION_PHONE_CLIENT: "ClinicAI SaaS"
+      CONFIG_SESSION_PHONE_NAME: "Chrome"
+      # Versão atual do protocolo WA buscada do GitHub (atualizar quando WhatsApp bloquear)
+      # Checar: docker exec evolution-api-sas sh -c "wget -qO- https://raw.githubusercontent.com/WhiskeySockets/Baileys/master/src/Defaults/baileys-version.json"
+      CONFIG_SESSION_PHONE_VERSION: "2.3000.1035194821"
+      WA_VERSION: "2,3000,1035194821"
+
+volumes:
+  evolution_redis_data:
+  evolution_instances:

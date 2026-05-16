@@ -1,0 +1,65 @@
+# ─────────────────────────────────────────────────────────────
+#  Dockerfile.api  —  Backend Node.js (Express 5 / ESM)
+#  Multi-stage: build → runtime mínimo (sem devDeps)
+# ─────────────────────────────────────────────────────────────
+
+# ── Estágio 1: builder ────────────────────────────────────────
+ARG NODE_VERSION=22
+FROM node:${NODE_VERSION}-alpine AS builder
+
+# pnpm via corepack
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+WORKDIR /app
+
+# Copia manifestos para cache de dependências
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY tsconfig.base.json tsconfig.json ./
+
+# Copia packages de lib (dependências do monorepo)
+COPY lib/db/package.json                        ./lib/db/
+COPY lib/api-zod/package.json                   ./lib/api-zod/
+COPY lib/api-spec/package.json                  ./lib/api-spec/
+COPY lib/integrations-openai-ai-server/package.json ./lib/integrations-openai-ai-server/
+
+# Copia o package do api-server
+COPY artifacts/api-server/package.json          ./artifacts/api-server/
+
+# Instala TODAS as dependências (incluindo devDeps necessários para o build)
+RUN pnpm install --frozen-lockfile
+
+# Copia os fontes
+COPY lib/db/                    ./lib/db/
+COPY lib/api-zod/               ./lib/api-zod/
+COPY lib/api-spec/              ./lib/api-spec/
+COPY lib/integrations-openai-ai-server/ ./lib/integrations-openai-ai-server/
+COPY artifacts/api-server/      ./artifacts/api-server/
+COPY tsconfig.base.json         ./tsconfig.base.json
+COPY tsconfig.json              ./tsconfig.json
+
+# Build do bundle ESM (esbuild — saída em artifacts/api-server/dist/)
+RUN cd artifacts/api-server && pnpm run build
+
+# ── Estágio 2: runtime ────────────────────────────────────────
+FROM node:${NODE_VERSION}-alpine AS runtime
+
+# Não executa como root
+RUN addgroup -S clinicai && adduser -S clinicai -G clinicai
+
+WORKDIR /app
+
+# Copia apenas o bundle compilado — sem fontes nem devDeps
+COPY --from=builder /app/artifacts/api-server/dist ./dist
+
+# Copia drizzle schema para migrations em runtime (opcional, mas útil)
+COPY --from=builder /app/lib/db ./lib/db
+
+USER clinicai
+
+ENV NODE_ENV=production
+ENV PORT=3000
+
+EXPOSE 3000
+
+# --enable-source-maps para stack traces legíveis com o bundle
+CMD ["node", "--enable-source-maps", "./dist/index.mjs"]

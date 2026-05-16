@@ -1,0 +1,77 @@
+# See https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files for more about ignoring files.
+
+# compiled output
+dist
+tmp
+out-tsc
+*.tsbuildinfo
+.expo
+.expo-shared
+
+# dependencies
+node_modules
+
+# environment variables
+.env
+.env.local
+.env.prod
+
+# production deployment sensitive files
+backups/
+clinicai-oracle.key
+*.key
+deploy/scripts/*.log
+deploy/scripts/oracle-instance.txt
+
+# scripts de operações com credenciais (usar env vars)
+scripts/setup-ops/bootstrap.json
+test_evolution_db.js
+migrate-lid.sh
+
+# logs
+*.log
+
+# database backups (may contain sensitive data)
+clinic_sas_backup.sql
+*.backup.sql
+
+# temp / runtime files
+qr-result.json
+oracle-retry.log
+
+# IDEs and editors
+/.idea
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+
+# IDE - VSCode
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# Copilot/Replit internal skills and workspace files
+.local/
+.cursor/
+
+# misc
+/.sass-cache
+/connect.lock
+/coverage
+/libpeerconnection.log
+npm-debug.log
+yarn-error.log
+testem.log
+/typings
+
+# System Files
+.DS_Store
+Thumbs.db
+
+.cursor/rules/nx-rules.mdc
+.github/instructions/nx.instructions.md

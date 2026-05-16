@@ -1,0 +1,6 @@
+packages:
+  "date-fns": "For elegant date formatting in patient history and tables"
+images: []
+notes:
+  - "Assuming Shadcn UI components (Tabs, Checkbox, Switch, Textarea) follow standard API."
+  - "Professionals and Patients pages added to the main routing structure."

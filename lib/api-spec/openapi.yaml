@@ -1,0 +1,1380 @@
+openapi: 3.1.0
+info:
+  title: Api
+  version: 0.1.0
+  description: ClinicAI SaaS multi-tenant WhatsApp automation API
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: clinics
+    description: Clinic management
+  - name: services
+    description: Services offered by a clinic
+  - name: professionals
+    description: Professionals and their specialties
+  - name: patients
+    description: Patient/client management
+  - name: appointments
+    description: Appointment management
+  - name: ai-logs
+    description: AI interaction logs
+  - name: handoffs
+    description: Human attendant takeover of WhatsApp conversations
+  - name: whatsapp
+    description: WhatsApp webhook
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /clinics:
+    get:
+      operationId: listClinics
+      tags: [clinics]
+      summary: List all clinics
+      responses:
+        "200":
+          description: List of clinics
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Clinic"
+    post:
+      operationId: createClinic
+      tags: [clinics]
+      summary: Create a clinic
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateClinicBody"
+      responses:
+        "201":
+          description: Created clinic
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Clinic"
+
+  /clinics/{id}:
+    get:
+      operationId: getClinic
+      tags: [clinics]
+      summary: Get a clinic by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Clinic
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Clinic"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      operationId: updateClinic
+      tags: [clinics]
+      summary: Update clinic AI settings
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateClinicBody"
+      responses:
+        "200":
+          description: Updated clinic
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Clinic"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /clinics/{clinicId}/services:
+    get:
+      operationId: listServices
+      tags: [services]
+      summary: List services for a clinic
+      parameters:
+        - name: clinicId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of services
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Service"
+    post:
+      operationId: createService
+      tags: [services]
+      summary: Create a service for a clinic
+      parameters:
+        - name: clinicId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateServiceBody"
+      responses:
+        "201":
+          description: Created service
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Service"
+
+  /clinics/{clinicId}/services/{id}:
+    patch:
+      operationId: updateService
+      tags: [services]
+      summary: Update a service
+      parameters:
+        - name: clinicId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateServiceBody"
+      responses:
+        "200":
+          description: Updated service
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Service"
+    delete:
+      operationId: deleteService
+      tags: [services]
+      summary: Delete a service
+      parameters:
+        - name: clinicId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /clinics/{clinicId}/professionals:
+    get:
+      operationId: listProfessionals
+      tags: [professionals]
+      summary: List professionals for a clinic
+      parameters:
+        - name: clinicId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: serviceId
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Filter professionals who can perform this service
+      responses:
+        "200":
+          description: List of professionals
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Professional"
+    post:
+      operationId: createProfessional
+      tags: [professionals]
+      summary: Create a professional
+      parameters:
+        - name: clinicId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProfessionalBody"
+      responses:
+        "201":
+          description: Created professional
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Professional"
+
+  /clinics/{clinicId}/professionals/{id}:
+    get:
+      operationId: getProfessional
+      tags: [professionals]
+      summary: Get a professional with their service links
+      parameters:
+        - name: clinicId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Professional detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfessionalDetail"
+    patch:
+      operationId: updateProfessional
+      tags: [professionals]
+      summary: Update a professional
+      parameters:
+        - name: clinicId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProfessionalBody"
+      responses:
+        "200":
+          description: Updated professional
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Professional"
+    delete:
+      operationId: deleteProfessional
+      tags: [professionals]
+      summary: Delete a professional
+      parameters:
+        - name: clinicId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /clinics/{clinicId}/professionals/{id}/services:
+    put:
+      operationId: setProfessionalServices
+      tags: [professionals]
+      summary: Set the services a professional can perform (replaces existing)
+      parameters:
+        - name: clinicId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetProfessionalServicesBody"
+      responses:
+        "200":
+          description: Updated service list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfessionalDetail"
+
+  /clinics/{clinicId}/professionals/{id}/schedule:
+    get:
+      operationId: getProfessionalSchedule
+      tags: [professionals]
+      summary: Get the weekly schedule of a professional
+      parameters:
+        - name: clinicId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of schedule entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProfessionalScheduleEntry"
+    put:
+      operationId: setProfessionalSchedule
+      tags: [professionals]
+      summary: Replace the full weekly schedule of a professional
+      parameters:
+        - name: clinicId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetProfessionalScheduleBody"
+      responses:
+        "200":
+          description: Updated schedule
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProfessionalScheduleEntry"
+
+  /clinics/{clinicId}/patients:
+    get:
+      operationId: listPatients
+      tags: [patients]
+      summary: List patients for a clinic
+      parameters:
+        - name: clinicId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Search by name or phone
+      responses:
+        "200":
+          description: List of patients
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Patient"
+    post:
+      operationId: createPatient
+      tags: [patients]
+      summary: Create a patient
+      parameters:
+        - name: clinicId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePatientBody"
+      responses:
+        "201":
+          description: Created patient
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Patient"
+
+  /clinics/{clinicId}/patients/{id}:
+    get:
+      operationId: getPatient
+      tags: [patients]
+      summary: Get patient with appointment history
+      parameters:
+        - name: clinicId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Patient detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PatientDetail"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      operationId: updatePatient
+      tags: [patients]
+      summary: Update patient info or notes
+      parameters:
+        - name: clinicId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePatientBody"
+      responses:
+        "200":
+          description: Updated patient
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Patient"
+    delete:
+      operationId: deletePatient
+      tags: [patients]
+      summary: Delete a patient
+      parameters:
+        - name: clinicId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /clinics/{clinicId}/appointments:
+    get:
+      operationId: listAppointments
+      tags: [appointments]
+      summary: List appointments for a clinic
+      parameters:
+        - name: clinicId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [pending, confirmed, canceled, scheduled]
+        - name: professionalId
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: patientId
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: serviceId
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of appointments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Appointment"
+
+  /clinics/{clinicId}/appointments/{id}:
+    patch:
+      operationId: updateAppointment
+      tags: [appointments]
+      summary: Update appointment status
+      parameters:
+        - name: clinicId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateAppointmentBody"
+      responses:
+        "200":
+          description: Updated appointment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Appointment"
+
+  /clinics/{clinicId}/handoffs:
+    get:
+      operationId: listHandoffs
+      tags: [handoffs]
+      summary: Lista handoffs ativos para a clínica
+      parameters:
+        - name: clinicId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Lista de handoffs ativos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Handoff"
+    post:
+      operationId: createHandoff
+      tags: [handoffs]
+      summary: Atendente assume uma conversa (pausa a IA)
+      parameters:
+        - name: clinicId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateHandoffBody"
+      responses:
+        "201":
+          description: Handoff criado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Handoff"
+        "409":
+          description: Já existe handoff ativo para esse telefone
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /clinics/{clinicId}/handoffs/{phone}:
+    delete:
+      operationId: deleteHandoff
+      tags: [handoffs]
+      summary: Encerra um handoff ativo
+      parameters:
+        - name: clinicId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: phone
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Handoff encerrado
+        "404":
+          description: Handoff não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /clinics/{clinicId}/handoffs/{phone}/messages:
+    get:
+      operationId: listHandoffMessages
+      tags: [handoffs]
+      summary: Histórico mesclado de mensagens (IA + atendente) para um paciente
+      parameters:
+        - name: clinicId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: phone
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Lista de mensagens
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ConversationHistoryItem"
+    post:
+      operationId: sendHandoffMessage
+      tags: [handoffs]
+      summary: Atendente envia mensagem pelo WhatsApp
+      parameters:
+        - name: clinicId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: phone
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendHandoffMessageBody"
+      responses:
+        "201":
+          description: Mensagem enviada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConversationHistoryItem"
+
+  /clinics/{clinicId}/ai-logs:
+    get:
+      operationId: listAiLogs
+      tags: [ai-logs]
+      summary: List AI interaction logs for a clinic
+      parameters:
+        - name: clinicId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of AI logs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AiLog"
+
+  /whatsapp/webhook:
+    post:
+      operationId: whatsappWebhook
+      tags: [whatsapp]
+      summary: Receive WhatsApp messages and process with AI
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WhatsappWebhookBody"
+      responses:
+        "200":
+          description: Processed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WhatsappWebhookResponse"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required: [status]
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required: [error]
+
+    Clinic:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        phone:
+          type: string
+        apiKey:
+          type: string
+        aiName:
+          type: string
+        aiPersonalityPrompt:
+          type: string
+        knowledgeBase:
+          type: string
+        clinicType:
+          type: string
+          enum: [medical, vet, dental, beauty, education, retail, food, technology, services, other]
+        aiExternalApiKey:
+          type: string
+          nullable: true
+          description: "Chave de API de IA externa (retornada mascarada: ****XXXX)"
+        asaasApiKey:
+          type: string
+          nullable: true
+          description: "Chave de integração Asaas (retornada mascarada: ****XXXX)"
+        whatsappPhoneNumberId:
+          type: string
+          nullable: true
+          description: "ID do número WhatsApp Business API"
+        whatsappAccessToken:
+          type: string
+          nullable: true
+          description: "Token de acesso WhatsApp Business API (retornado mascarado: ****XXXX)"
+        evolutionInstanceName:
+          type: string
+          nullable: true
+        whatsappProvider:
+          type: string
+          enum: [evolution, meta]
+          description: "Provedor WhatsApp ativo: evolution (padrão) ou meta"
+        mercadoPagoAccessToken:
+          type: string
+          nullable: true
+          description: "Access Token Mercado Pago (retornado mascarado: ****XXXX)"
+        schedulingEnabled:
+          type: boolean
+          description: "Se false, o módulo de agendamento está desativado"
+        aiEnabled:
+          type: boolean
+          description: "Se false, a IA não responde automaticamente pelo WhatsApp"
+        isBlocked:
+          type: boolean
+          description: "Se true, a conta está bloqueada pelo superadmin"
+        blockedReason:
+          type: string
+          nullable: true
+          description: "Motivo do bloqueio"
+        blockedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: "Data em que a conta foi bloqueada"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, name, phone, apiKey, aiName, aiPersonalityPrompt, knowledgeBase, clinicType, aiEnabled, whatsappProvider, schedulingEnabled, isBlocked, createdAt, updatedAt]
+
+    CreateClinicBody:
+      type: object
+      properties:
+        name:
+          type: string
+        phone:
+          type: string
+        clinicType:
+          type: string
+          enum: [medical, vet, dental, beauty, education, retail, food, technology, services, other]
+        aiName:
+          type: string
+        aiPersonalityPrompt:
+          type: string
+        knowledgeBase:
+          type: string
+      required: [name, phone, clinicType, aiName, aiPersonalityPrompt, knowledgeBase]
+
+    UpdateClinicBody:
+      type: object
+      properties:
+        name:
+          type: string
+        aiName:
+          type: string
+        aiPersonalityPrompt:
+          type: string
+        knowledgeBase:
+          type: string
+        clinicType:
+          type: string
+          enum: [medical, vet, dental, beauty, education, retail, food, technology, services, other]
+        aiExternalApiKey:
+          type: string
+          nullable: true
+          description: "Chave de API de IA externa — enviar o valor completo para atualizar"
+        asaasApiKey:
+          type: string
+          nullable: true
+          description: "Chave de integração Asaas — enviar o valor completo para atualizar"
+        whatsappPhoneNumberId:
+          type: string
+          nullable: true
+        whatsappAccessToken:
+          type: string
+          nullable: true
+          description: "Token de acesso WhatsApp Business API — enviar o valor completo para atualizar"
+        aiEnabled:
+          type: boolean
+          description: "Liga/desliga o atendimento automático por IA"
+        whatsappProvider:
+          type: string
+          enum: [evolution, meta]
+          description: "Provedor WhatsApp ativo"
+        evolutionInstanceName:
+          type: string
+          nullable: true
+        mercadoPagoAccessToken:
+          type: string
+          nullable: true
+          description: "Access Token Mercado Pago — enviar o valor completo para atualizar"
+        schedulingEnabled:
+          type: boolean
+          description: "Liga/desliga o módulo de agendamento"
+
+    Service:
+      type: object
+      properties:
+        id:
+          type: integer
+        clinicId:
+          type: integer
+        name:
+          type: string
+        description:
+          type: ["string", "null"]
+        price:
+          type: number
+        durationMinutes:
+          type: integer
+        active:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, clinicId, name, price, durationMinutes, active, createdAt]
+
+    CreateServiceBody:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        price:
+          type: number
+        durationMinutes:
+          type: integer
+      required: [name, price, durationMinutes]
+
+    UpdateServiceBody:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        price:
+          type: number
+        durationMinutes:
+          type: integer
+        active:
+          type: boolean
+
+    Professional:
+      type: object
+      properties:
+        id:
+          type: integer
+        clinicId:
+          type: integer
+        name:
+          type: string
+        specialty:
+          type: string
+        bio:
+          type: ["string", "null"]
+        active:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, clinicId, name, specialty, active, createdAt, updatedAt]
+
+    ProfessionalDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+        clinicId:
+          type: integer
+        name:
+          type: string
+        specialty:
+          type: string
+        bio:
+          type: ["string", "null"]
+        active:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        serviceIds:
+          type: array
+          items:
+            type: integer
+      required: [id, clinicId, name, specialty, active, createdAt, updatedAt, serviceIds]
+
+    CreateProfessionalBody:
+      type: object
+      properties:
+        name:
+          type: string
+        specialty:
+          type: string
+        bio:
+          type: string
+        active:
+          type: boolean
+        serviceIds:
+          type: array
+          items:
+            type: integer
+      required: [name, specialty]
+
+    UpdateProfessionalBody:
+      type: object
+      properties:
+        name:
+          type: string
+        specialty:
+          type: string
+        bio:
+          type: string
+        active:
+          type: boolean
+
+    SetProfessionalServicesBody:
+      type: object
+      properties:
+        serviceIds:
+          type: array
+          items:
+            type: integer
+      required: [serviceIds]
+
+    ProfessionalScheduleEntry:
+      type: object
+      properties:
+        id:
+          type: integer
+        professionalId:
+          type: integer
+        dayOfWeek:
+          type: integer
+          description: 0=Sunday, 1=Monday … 6=Saturday
+        startMinute:
+          type: integer
+          description: Minutes since midnight (e.g. 480 = 08:00)
+        endMinute:
+          type: integer
+          description: Minutes since midnight (e.g. 1020 = 17:00)
+        isBlock:
+          type: boolean
+          description: false = work window, true = blocked slot (e.g. lunch break)
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, professionalId, dayOfWeek, startMinute, endMinute, isBlock, createdAt]
+
+    SetProfessionalScheduleBody:
+      type: object
+      properties:
+        entries:
+          type: array
+          items:
+            type: object
+            properties:
+              dayOfWeek:
+                type: integer
+              startMinute:
+                type: integer
+              endMinute:
+                type: integer
+              isBlock:
+                type: boolean
+            required: [dayOfWeek, startMinute, endMinute, isBlock]
+      required: [entries]
+
+    Patient:
+      type: object
+      properties:
+        id:
+          type: integer
+        clinicId:
+          type: integer
+        name:
+          type: string
+        phone:
+          type: string
+        realPhone:
+          type: ["string", "null"]
+          description: "Número de telefone real do paciente (preenchido quando o sistema não consegue identificar o número automática e o paciente informa manualmente)"
+        email:
+          type: ["string", "null"]
+        dateOfBirth:
+          type: ["string", "null"]
+        notes:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, clinicId, name, phone, createdAt, updatedAt]
+
+    PatientDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+        clinicId:
+          type: integer
+        name:
+          type: string
+        phone:
+          type: string
+        email:
+          type: ["string", "null"]
+        dateOfBirth:
+          type: ["string", "null"]
+        realPhone:
+          type: ["string", "null"]
+          description: "Número de telefone real do paciente"
+        notes:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        appointments:
+          type: array
+          items:
+            $ref: "#/components/schemas/Appointment"
+        aiLogs:
+          type: array
+          items:
+            $ref: "#/components/schemas/AiLog"
+      required: [id, clinicId, name, phone, createdAt, updatedAt, appointments, aiLogs]
+
+    CreatePatientBody:
+      type: object
+      properties:
+        name:
+          type: string
+        phone:
+          type: string
+        realPhone:
+          type: string
+        email:
+          type: string
+        dateOfBirth:
+          type: string
+        notes:
+          type: string
+      required: [name, phone]
+
+    UpdatePatientBody:
+      type: object
+      properties:
+        name:
+          type: string
+        phone:
+          type: string
+        realPhone:
+          type: string
+        email:
+          type: string
+        dateOfBirth:
+          type: string
+        notes:
+          type: string
+
+    Appointment:
+      type: object
+      properties:
+        id:
+          type: integer
+        clinicId:
+          type: integer
+        serviceId:
+          type: ["integer", "null"]
+        professionalId:
+          type: ["integer", "null"]
+        patientId:
+          type: ["integer", "null"]
+        patientName:
+          type: string
+        patientPhone:
+          type: string
+        scheduledAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [pending, confirmed, canceled, scheduled]
+        paymentIntentId:
+          type: ["string", "null"]
+        notes:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, clinicId, patientName, patientPhone, scheduledAt, status, createdAt]
+
+    UpdateAppointmentBody:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [pending, confirmed, canceled, scheduled]
+        notes:
+          type: string
+        professionalId:
+          type: integer
+        scheduledAt:
+          type: string
+          format: date-time
+
+    AiLog:
+      type: object
+      properties:
+        id:
+          type: integer
+        clinicId:
+          type: integer
+        patientPhone:
+          type: string
+        userMessage:
+          type: string
+        aiResponse:
+          type: string
+        tokensUsed:
+          type: integer
+        messageType:
+          type: string
+          enum: [text, audio]
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, clinicId, patientPhone, userMessage, aiResponse, tokensUsed, messageType, createdAt]
+
+    Handoff:
+      type: object
+      properties:
+        id:
+          type: integer
+        clinicId:
+          type: integer
+        patientPhone:
+          type: string
+        attendantId:
+          type: integer
+          nullable: true
+        startedAt:
+          type: string
+          format: date-time
+        endedAt:
+          type: string
+          format: date-time
+          nullable: true
+      required: [id, clinicId, patientPhone, startedAt]
+
+    CreateHandoffBody:
+      type: object
+      properties:
+        patientPhone:
+          type: string
+      required: [patientPhone]
+
+    ConversationHistoryItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        source:
+          type: string
+          enum: [ai, attendant, patient]
+          description: "ai = resposta da IA; attendant = resposta do atendente humano; patient = mensagem do paciente"
+        content:
+          type: string
+        patientPhone:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, source, content, patientPhone, createdAt]
+
+    SendHandoffMessageBody:
+      type: object
+      properties:
+        content:
+          type: string
+      required: [content]
+
+    WhatsappWebhookBody:
+      type: object
+      properties:
+        apiKey:
+          type: string
+        from:
+          type: string
+        message:
+          type: string
+        audioUrl:
+          type: ["string", "null"]
+        messageType:
+          type: string
+          enum: [text, audio]
+      required: [apiKey, from, message, messageType]
+
+    WhatsappWebhookResponse:
+      type: object
+      properties:
+        reply:
+          type: string
+        appointmentId:
+          type: ["integer", "null"]
+      required: [reply]

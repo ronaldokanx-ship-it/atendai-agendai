@@ -1,0 +1,22 @@
+# Parte da imagem oficial Evolution API e atualiza o Baileys para versão mais recente
+# Necessário porque o Baileys bundled pode estar desatualizado
+# e o WhatsApp pode bloquear versões antigas do protocolo.
+FROM atendai/evolution-api:latest
+
+WORKDIR /evolution
+
+# Instala git e Node (para o script de patch) e atualiza Baileys para versão mais recente
+RUN apk add --no-cache git \
+    && npm install @whiskeysockets/baileys@latest --save --legacy-peer-deps \
+    && apk del git
+
+# ── Patch: bypass @lid WhatsApp Privacy Mode ───────────────────────────────
+# O Baileys (via onWhatsApp) retorna { exists: false } para JIDs @lid porque
+# os servidores do WhatsApp não expõem o número real via QUERY_EXIST.
+# Sem este patch, a Evolution API lança BadRequestException para qualquer envio
+# a um JID @lid, impedindo a resposta a usuários com Privacy Mode ativo.
+#
+# O patch adiciona &&!n.jid.includes("@lid") à verificação de existência,
+# permitindo o envio sem checar existência para JIDs de Privacy Mode.
+COPY patch-evolution-lid.js /tmp/patch-evolution-lid.js
+RUN node /tmp/patch-evolution-lid.js && rm /tmp/patch-evolution-lid.js

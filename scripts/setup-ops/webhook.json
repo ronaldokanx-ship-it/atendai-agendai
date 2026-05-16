@@ -1,0 +1,1 @@
+{"webhook":{"url":"https://api.kanxitsolutions.com.br/api/whatsapp/evolution","enabled":true,"webhookByEvents":false,"webhookBase64":false,"events":["MESSAGES_UPSERT","MESSAGES_UPDATE","CONNECTION_UPDATE"]}}

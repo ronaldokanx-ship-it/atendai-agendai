@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "ClinicAI Dashboard"
+version = "1.0.0"
+id = "artifacts/clinic-dashboard"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 18594
+
+[services.development]
+run = "pnpm --filter @workspace/clinic-dashboard run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/clinic-dashboard", "run", "build" ]
+publicDir = "artifacts/clinic-dashboard/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "18594"
+BASE_PATH = "/"
