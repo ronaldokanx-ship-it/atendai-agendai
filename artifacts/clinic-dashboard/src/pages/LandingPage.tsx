@@ -686,7 +686,7 @@ export default function LandingPage() {
           </div>
           <div className="rounded-2xl p-6 sm:p-10 space-y-8"
             style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
-            <ComparisonBar label="Tempo médio de primeira resposta" humanLabel="8 horas" aiLabel="3 segundos" humanPct={95} aiPct={4} />
+            <ComparisonBar label="Tempo médio de primeira resposta" humanLabel="8 horas" aiLabel="menos de 1 minuto" humanPct={95} aiPct={30} />
             <ComparisonBar label="Custo por atendimento" humanLabel="R$ 38" aiLabel="R$ 0,80" humanPct={90} aiPct={8} humanColor="#f59e0b" aiColor="#25d366" />
             <ComparisonBar label="Disponibilidade diária" humanLabel="8h/dia" aiLabel="24h/dia" humanPct={33} aiPct={100} humanColor="#6366f1" aiColor="#25d366" />
             <ComparisonBar label="Capacidade simultânea" humanLabel="1 cliente" aiLabel="Ilimitado" humanPct={10} aiPct={100} humanColor="#ec4899" aiColor="#25d366" />
