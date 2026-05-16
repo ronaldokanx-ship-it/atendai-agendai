@@ -26,7 +26,8 @@ COPY lib/integrations-openai-ai-server/package.json ./lib/integrations-openai-ai
 COPY artifacts/api-server/package.json          ./artifacts/api-server/
 
 # Instala TODAS as dependências (incluindo devDeps necessários para o build)
-RUN pnpm install --frozen-lockfile
+# --ignore-scripts evita o preinstall guard que verifica npm_config_user_agent
+RUN pnpm install --frozen-lockfile --ignore-scripts
 
 # Copia os fontes
 COPY lib/db/                    ./lib/db/
