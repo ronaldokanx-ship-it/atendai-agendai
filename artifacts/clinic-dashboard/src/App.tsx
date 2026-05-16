@@ -22,6 +22,7 @@ import Login from "@/pages/Login"
 import Register from "@/pages/Register"
 import AdminClinics from "@/pages/AdminClinics"
 import Team from "@/pages/Team"
+import LandingPage from "@/pages/LandingPage"
 import NotFound from "@/pages/not-found"
 
 const queryClient = new QueryClient({
@@ -43,9 +44,7 @@ function Router() {
           <AdminClinics />
         </AdminProtectedRoute>
       </Route>
-      <Route path="/">
-        <Redirect to="/dashboard" />
-      </Route>
+      <Route path="/" component={LandingPage} />
       <Route>
         <ProtectedRoute>
           <AppLayout>
