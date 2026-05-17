@@ -166,6 +166,10 @@ export const GetClinicResponse = zod.object({
     .describe("Se true, a conta está bloqueada pelo superadmin"),
   blockedReason: zod.string().nullish().describe("Motivo do bloqueio"),
   blockedAt: zod.date().nullish().describe("Data em que a conta foi bloqueada"),
+  trialEndsAt: zod.date().nullish().describe("Data de encerramento do período de trial"),
+  subscriptionStatus: zod
+    .enum(["trial", "active", "expired", "suspended"])
+    .describe("Status da assinatura"),
   createdAt: zod.date(),
   updatedAt: zod.date(),
 });

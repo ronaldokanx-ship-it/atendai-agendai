@@ -976,13 +976,22 @@ components:
           format: date-time
           nullable: true
           description: "Data em que a conta foi bloqueada"
+        trialEndsAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: "Data de encerramento do período de trial"
+        subscriptionStatus:
+          type: string
+          enum: [trial, active, expired, suspended]
+          description: "Status da assinatura: trial | active | expired | suspended"
         createdAt:
           type: string
           format: date-time
         updatedAt:
           type: string
           format: date-time
-      required: [id, name, phone, apiKey, aiName, aiPersonalityPrompt, knowledgeBase, clinicType, aiEnabled, whatsappProvider, schedulingEnabled, isBlocked, createdAt, updatedAt]
+      required: [id, name, phone, apiKey, aiName, aiPersonalityPrompt, knowledgeBase, clinicType, aiEnabled, whatsappProvider, schedulingEnabled, isBlocked, createdAt, updatedAt, subscriptionStatus]
 
     CreateClinicBody:
       type: object
