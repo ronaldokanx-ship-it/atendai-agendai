@@ -15,6 +15,7 @@ import { randomUUID } from "crypto";
 import { getInstanceState, getInstanceQrCode, logoutInstance } from "../lib/evolution-api";
 import { processWhatsAppMessage } from "../lib/ai-orchestrator";
 import { and, eq as eqD } from "drizzle-orm";
+import { requireSuperAdmin } from "../middlewares/auth";
 import {
   hasActiveSchedulingSession,
   handleSchedulingSelection,
@@ -49,12 +50,12 @@ function toPublicClinic(clinic: Clinic) {
   };
 }
 
-router.get("/clinics", async (req, res): Promise<void> => {
+router.get("/clinics", requireSuperAdmin, async (req, res): Promise<void> => {
   const clinics = await db.select().from(clinicsTable).orderBy(clinicsTable.id);
   res.json(ListClinicsResponse.parse(clinics.map(toPublicClinic)));
 });
 
-router.post("/clinics", async (req, res): Promise<void> => {
+router.post("/clinics", requireSuperAdmin, async (req, res): Promise<void> => {
   const parsed = CreateClinicBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });

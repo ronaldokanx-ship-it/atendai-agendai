@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, and, inArray } from "drizzle-orm";
-import { db, professionalsTable, professionalServicesTable, professionalSchedulesTable } from "@workspace/db";
+import { db, professionalsTable, professionalServicesTable, professionalSchedulesTable, servicesTable } from "@workspace/db";
 import {
   ListProfessionalsParams,
   ListProfessionalsQueryParams,
@@ -100,9 +100,16 @@ router.post("/clinics/:clinicId/professionals", async (req, res): Promise<void> 
     .returning();
 
   if (serviceIds && serviceIds.length > 0) {
-    await db.insert(professionalServicesTable).values(
-      serviceIds.map((sid) => ({ professionalId: professional.id, serviceId: sid }))
-    );
+    const validServices = await db
+      .select({ id: servicesTable.id })
+      .from(servicesTable)
+      .where(and(inArray(servicesTable.id, serviceIds), eq(servicesTable.clinicId, params.data.clinicId)));
+    const validIds = validServices.map((s) => s.id);
+    if (validIds.length > 0) {
+      await db.insert(professionalServicesTable).values(
+        validIds.map((sid) => ({ professionalId: professional.id, serviceId: sid }))
+      );
+    }
   }
 
   res.status(201).json(professional);
@@ -218,12 +225,19 @@ router.put("/clinics/:clinicId/professionals/:id/services", async (req, res): Pr
     .where(eq(professionalServicesTable.professionalId, params.data.id));
 
   if (parsed.data.serviceIds.length > 0) {
-    await db.insert(professionalServicesTable).values(
-      parsed.data.serviceIds.map((sid) => ({
-        professionalId: params.data.id,
-        serviceId: sid,
-      }))
-    );
+    const validServices = await db
+      .select({ id: servicesTable.id })
+      .from(servicesTable)
+      .where(and(inArray(servicesTable.id, parsed.data.serviceIds), eq(servicesTable.clinicId, params.data.clinicId)));
+    const validIds = validServices.map((s) => s.id);
+    if (validIds.length > 0) {
+      await db.insert(professionalServicesTable).values(
+        validIds.map((sid) => ({
+          professionalId: params.data.id,
+          serviceId: sid,
+        }))
+      );
+    }
   }
 
   const serviceIds = await getProfessionalServiceIds(params.data.id);
