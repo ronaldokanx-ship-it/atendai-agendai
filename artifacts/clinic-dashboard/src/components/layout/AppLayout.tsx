@@ -18,9 +18,11 @@ import {
   Package,
   Clock,
   Rocket,
+  Headphones,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/contexts/auth"
+import { useHandoffs } from "@/contexts/handoffs"
 import { AppLogo } from "@/components/AppLogo"
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
@@ -34,6 +36,7 @@ interface AppLayoutProps {
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Painel", icon: LayoutDashboard },
   { href: "/appointments", label: "Agendamentos", icon: CalendarDays },
+  { href: "/atendimentos", label: "Atendimentos", icon: Headphones, visibleTo: ["owner", "supervisor", "attendant"] as string[], badgeKey: "handoffs" },
   { href: "/services", label: "Serviços", icon: Stethoscope },
   { href: "/professionals", label: "Profissionais", icon: UserCheck },
   { href: "/patients", label: "Clientes", icon: Users },
@@ -48,16 +51,19 @@ const NAV_ITEMS = [
 function NavLinks({
   items,
   location,
+  badgeCounts,
   onNavigate,
 }: {
   items: typeof NAV_ITEMS
   location: string
+  badgeCounts?: Record<string, number>
   onNavigate?: () => void
 }) {
   return (
     <>
       {items.map((item) => {
         const isActive = location === item.href || (location === "/" && item.href === "/dashboard")
+        const badgeCount = item.badgeKey ? (badgeCounts?.[item.badgeKey] ?? 0) : 0
         return (
           <Link
             key={item.href}
@@ -71,7 +77,15 @@ function NavLinks({
             )}
           >
             <item.icon className={cn("w-5 h-5 shrink-0", isActive ? "text-primary-foreground" : "text-muted-foreground")} />
-            {item.label}
+            <span className="flex-1">{item.label}</span>
+            {badgeCount > 0 && (
+              <span className={cn(
+                "inline-flex items-center justify-center min-w-[1.25rem] h-5 rounded-full text-[10px] font-bold px-1",
+                isActive ? "bg-white/20 text-white" : "bg-orange-500 text-white"
+              )}>
+                {badgeCount > 99 ? "99+" : badgeCount}
+              </span>
+            )}
           </Link>
         )
       })}
@@ -132,7 +146,12 @@ function SidebarFooter({ logout, trialDaysLeft, subscriptionStatus }: {
 export function AppLayout({ children }: AppLayoutProps) {
   const [location] = useLocation()
   const { user, logout } = useAuth()
+  const { activePhones } = useHandoffs()
   const [mobileOpen, setMobileOpen] = React.useState(false)
+
+  const badgeCounts: Record<string, number> = {
+    handoffs: activePhones.length,
+  }
 
   const token = localStorage.getItem("clinic_token")
   const clinicId = user?.clinicId
@@ -171,7 +190,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         </div>
 
         <nav className="flex-1 p-4 space-y-1.5 overflow-y-auto">
-          <NavLinks items={visibleItems} location={location} />
+          <NavLinks items={visibleItems} location={location} badgeCounts={badgeCounts} />
         </nav>
 
         <SidebarFooter logout={logout} trialDaysLeft={trialDaysLeft} subscriptionStatus={clinic?.subscriptionStatus} />
@@ -206,6 +225,7 @@ export function AppLayout({ children }: AppLayoutProps) {
             <NavLinks
               items={visibleItems}
               location={location}
+              badgeCounts={badgeCounts}
               onNavigate={() => setMobileOpen(false)}
             />
           </nav>

@@ -22,6 +22,7 @@ import Login from "@/pages/Login"
 import Register from "@/pages/Register"
 import AdminClinics from "@/pages/AdminClinics"
 import Team from "@/pages/Team"
+import Atendimentos from "@/pages/Atendimentos"
 import LandingPage from "@/pages/LandingPage"
 import NotFound from "@/pages/not-found"
 
@@ -59,6 +60,7 @@ function Router() {
               <Route path="/logs" component={AiLogs} />
               <Route path="/chat" component={AiChat} />
               <Route path="/team" component={Team} />
+              <Route path="/atendimentos" component={Atendimentos} />
               <Route path="/settings/clinic" component={ClinicSettings} />
               <Route component={NotFound} />
             </Switch>
