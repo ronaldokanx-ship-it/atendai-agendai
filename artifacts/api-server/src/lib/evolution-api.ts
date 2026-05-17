@@ -47,7 +47,7 @@ export function isEvolutionConfigured(): boolean {
  * - Simule "status de digitando" antes do texto chegar (ver sendTyping)
  */
 async function humanDelay(): Promise<void> {
-  const ms = 5_000 + Math.random() * 10_000; // 5–15 segundos
+  const ms = 2_000 + Math.random() * 3_000; // 2–5 segundos
   logger.info({ delayMs: Math.round(ms) }, "[Evolution] Aplicando delay humano antes do envio");
   await new Promise<void>((resolve) => setTimeout(resolve, ms));
 }
