@@ -5,6 +5,7 @@ import { WhatsappWebhookBody, WhatsappWebhookResponse } from "@workspace/api-zod
 import { processWhatsAppMessage, transcribeAudio, buildAvailabilityList } from "../lib/ai-orchestrator";
 import { sendTextMessage, sendTypingPresence, sendListMessage, sendButtonMessage, isEvolutionConfigured, resolveLidPhone } from "../lib/evolution-api";
 import { clinicToChannel, waList, waTyping } from "../lib/whatsapp-provider";
+import { detectsHumanRequest } from "../lib/auto-handoff";
 import {
   isSchedulingIntent,
   isManagementIntent,
@@ -366,6 +367,28 @@ async function handleEvolutionWebhook(req: Request, res: Response): Promise<void
       content: textMessage || "(mensagem sem texto)",
     });
     req.log.info({ clinicId: clinic.id, from: rawPhone, reason: activeHandoff ? "handoff_ativo" : "ai_desativada" }, "[Evolution] Mensagem ignorada pela IA");
+    return;
+  }
+
+  // ── Auto-Handoff: paciente pediu atendente humano ────────────────────────
+  if (clinic.autoHandoffEnabled && textMessage && detectsHumanRequest(textMessage)) {
+    req.log.info({ clinicId: clinic.id, from: rawPhone }, "[Evolution] Auto-handoff ativado — paciente solicitou atendente humano");
+    await db.insert(handoffsTable).values({
+      clinicId: clinic.id,
+      patientPhone: rawPhone,
+      attendantId: null,
+    });
+    await db.insert(handoffMessagesTable).values({
+      clinicId: clinic.id,
+      patientPhone: rawPhone,
+      direction: "in",
+      content: textMessage,
+    });
+    if (isEvolutionConfigured()) {
+      await sendTextMessage(instance, replyJid,
+        "Entendido! 👋 Vou transferir você para um de nossos atendentes. Nossa equipe continuará esta conversa em breve. Aguarde!"
+      ).catch(() => {});
+    }
     return;
   }
 

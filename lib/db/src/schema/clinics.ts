@@ -29,6 +29,8 @@ export const clinicsTable = pgTable("clinics", {
   aiEnabled: boolean("ai_enabled").notNull().default(true),
   // Controla se o módulo de agendamento está ativo para esta empresa
   schedulingEnabled: boolean("scheduling_enabled").notNull().default(true),
+  // Controla se o handoff automático para atendente humano está ativado
+  autoHandoffEnabled: boolean("auto_handoff_enabled").notNull().default(false),
   // Controle de inadimplência/bloqueio pelo superadmin
   isBlocked: boolean("is_blocked").notNull().default(false),
   blockedReason: text("blocked_reason"),

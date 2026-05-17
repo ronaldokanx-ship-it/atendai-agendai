@@ -1,7 +1,7 @@
 import * as React from "react"
 import { useAuth } from "@/contexts/auth"
 import { motion } from "framer-motion"
-import { Bot, Save, Sparkles, Power, CalendarDays } from "lucide-react"
+import { Bot, Save, Sparkles, Power, CalendarDays, Users } from "lucide-react"
 import { useGetClinic, useUpdateClinic, getGetClinicQueryKey } from "@workspace/api-client-react"
 import { useQueryClient } from "@tanstack/react-query"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -25,6 +25,7 @@ export default function AiSettings() {
     knowledgeBase: "",
     aiEnabled: true,
     schedulingEnabled: true,
+    autoHandoffEnabled: false,
   })
 
   React.useEffect(() => {
@@ -35,6 +36,7 @@ export default function AiSettings() {
         knowledgeBase: clinic.knowledgeBase || "",
         aiEnabled: clinic.aiEnabled ?? true,
         schedulingEnabled: (clinic as Record<string, unknown>).schedulingEnabled !== false,
+        autoHandoffEnabled: (clinic as Record<string, unknown>).autoHandoffEnabled === true,
       })
     }
   }, [clinic])
@@ -141,6 +143,29 @@ export default function AiSettings() {
             <Switch
               checked={formData.schedulingEnabled}
               onCheckedChange={(checked) => setFormData(prev => ({ ...prev, schedulingEnabled: checked }))}
+            />
+          </div>
+        </CardHeader>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${formData.autoHandoffEnabled ? "bg-orange-500/10 text-orange-500" : "bg-muted text-muted-foreground"}`}>
+              <Users className="w-6 h-6" />
+            </div>
+            <div className="flex-1">
+              <CardTitle>Handoff Automático para Atendente</CardTitle>
+              <CardDescription>
+                {formData.autoHandoffEnabled
+                  ? "Quando o paciente pedir para falar com um humano, a IA transfere automaticamente para a fila de atendimento."
+                  : "Desativado. O atendente pode assumir a conversa manualmente pelo painel de Atendimentos."
+                }
+              </CardDescription>
+            </div>
+            <Switch
+              checked={formData.autoHandoffEnabled}
+              onCheckedChange={(checked) => setFormData(prev => ({ ...prev, autoHandoffEnabled: checked }))}
             />
           </div>
         </CardHeader>

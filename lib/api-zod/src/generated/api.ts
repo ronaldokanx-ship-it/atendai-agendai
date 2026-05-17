@@ -158,6 +158,9 @@ export const GetClinicResponse = zod.object({
   schedulingEnabled: zod
     .boolean()
     .describe("Se false, o módulo de agendamento está desativado"),
+  autoHandoffEnabled: zod
+    .boolean()
+    .describe("Se true, a IA transfere automaticamente para atendente humano quando o paciente solicita"),
   aiEnabled: zod
     .boolean()
     .describe("Se false, a IA não responde automaticamente pelo WhatsApp"),
@@ -238,6 +241,10 @@ export const UpdateClinicBody = zod.object({
     .boolean()
     .optional()
     .describe("Liga\/desliga o módulo de agendamento"),
+  autoHandoffEnabled: zod
+    .boolean()
+    .optional()
+    .describe("Liga\/desliga o handoff automático para atendente humano"),
 });
 
 export const UpdateClinicResponse = zod.object({
@@ -289,6 +296,9 @@ export const UpdateClinicResponse = zod.object({
   schedulingEnabled: zod
     .boolean()
     .describe("Se false, o módulo de agendamento está desativado"),
+  autoHandoffEnabled: zod
+    .boolean()
+    .describe("Se true, a IA transfere automaticamente para atendente humano quando o paciente solicita"),
   aiEnabled: zod
     .boolean()
     .describe("Se false, a IA não responde automaticamente pelo WhatsApp"),

@@ -42,6 +42,7 @@ import {
   startManagementFlow,
   clearSchedulingSession,
 } from "../lib/scheduling-flow";
+import { detectsHumanRequest } from "../lib/auto-handoff";
 import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
@@ -255,6 +256,28 @@ async function processMetaMessage(
       content: textMessage || rawSelectedId || "(seleção interativa)",
     });
     logger.info({ clinicId: clinic.id, rawPhone, reason: activeHandoff ? "handoff_ativo" : "ai_desativada" }, "[MetaWebhook] Mensagem ignorada pela IA");
+    return;
+  }
+
+  // ── Auto-Handoff: paciente pediu atendente humano ────────────────────────
+  if (clinic.autoHandoffEnabled && textMessage && detectsHumanRequest(textMessage)) {
+    logger.info({ clinicId: clinic.id, rawPhone }, "[MetaWebhook] Auto-handoff ativado — paciente solicitou atendente humano");
+    await db.insert(handoffsTable).values({
+      clinicId: clinic.id,
+      patientPhone: rawPhone,
+      attendantId: null,
+    });
+    await db.insert(handoffMessagesTable).values({
+      clinicId: clinic.id,
+      patientPhone: rawPhone,
+      direction: "in",
+      content: textMessage,
+    });
+    if (isMetaConfigured(metaConfig)) {
+      await sendMetaTextMessage(metaConfig, rawPhone,
+        "Entendido! 👋 Vou transferir você para um de nossos atendentes. Nossa equipe continuará esta conversa em breve. Aguarde!"
+      ).catch(() => {});
+    }
     return;
   }
 
