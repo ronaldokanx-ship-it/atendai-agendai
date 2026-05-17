@@ -93,10 +93,11 @@ function NavLinks({
   )
 }
 
-function SidebarFooter({ logout, trialDaysLeft, subscriptionStatus }: {
+function SidebarFooter({ logout, trialDaysLeft, subscriptionStatus, aiEnabled }: {
   logout: () => void
   trialDaysLeft: number | null
   subscriptionStatus?: string | null
+  aiEnabled?: boolean | null
 }) {
   const showTrial = subscriptionStatus === "trial" && trialDaysLeft !== null && trialDaysLeft > 0
   const isExpired = subscriptionStatus === "trial" && trialDaysLeft !== null && trialDaysLeft <= 0
@@ -120,11 +121,20 @@ function SidebarFooter({ logout, trialDaysLeft, subscriptionStatus }: {
         </div>
       )}
       <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-background/50 border border-border/50 shadow-sm">
-        <div className="relative flex h-3 w-3">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-          <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
-        </div>
-        <span className="text-sm font-medium text-muted-foreground">Agente IA Ativo</span>
+        {aiEnabled !== false ? (
+          <>
+            <div className="relative flex h-3 w-3">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+            </div>
+            <span className="text-sm font-medium text-muted-foreground">Agente IA Ativo</span>
+          </>
+        ) : (
+          <>
+            <span className="relative inline-flex rounded-full h-3 w-3 bg-muted-foreground/40"></span>
+            <span className="text-sm font-medium text-muted-foreground/60">IA Desativada</span>
+          </>
+        )}
       </div>
       <button
         onClick={logout}
@@ -160,6 +170,7 @@ export function AppLayout({ children }: AppLayoutProps) {
     blockedReason?: string | null
     trialEndsAt?: string | null
     subscriptionStatus?: string | null
+    aiEnabled?: boolean | null
   }>({
     queryKey: ["clinic-status", clinicId],
     queryFn: () =>
@@ -193,7 +204,7 @@ export function AppLayout({ children }: AppLayoutProps) {
           <NavLinks items={visibleItems} location={location} badgeCounts={badgeCounts} />
         </nav>
 
-        <SidebarFooter logout={logout} trialDaysLeft={trialDaysLeft} subscriptionStatus={clinic?.subscriptionStatus} />
+        <SidebarFooter logout={logout} trialDaysLeft={trialDaysLeft} subscriptionStatus={clinic?.subscriptionStatus} aiEnabled={clinic?.aiEnabled} />
       </aside>
 
       {/* ── Mobile Top Bar ── */}
@@ -230,7 +241,7 @@ export function AppLayout({ children }: AppLayoutProps) {
             />
           </nav>
 
-          <SidebarFooter logout={logout} trialDaysLeft={trialDaysLeft} subscriptionStatus={clinic?.subscriptionStatus} />
+          <SidebarFooter logout={logout} trialDaysLeft={trialDaysLeft} subscriptionStatus={clinic?.subscriptionStatus} aiEnabled={clinic?.aiEnabled} />
         </SheetContent>
       </Sheet>
 
